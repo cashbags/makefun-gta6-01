@@ -16,6 +16,14 @@ const KINDS = {
   van: { color: 0x8a8f96, w: 2.2, l: 5.2, h: 1.5, cabin: 0.9, speed: 9 },
   sport: { color: 0xc23b2e, w: 2.0, l: 4.2, h: 0.6, cabin: 0.5, speed: 15 },
   police: { color: 0x1f2a44, w: 2.0, l: 4.5, h: 0.78, cabin: 0.62, speed: 16 },
+  // The two heavy kinds. A truck is the slowest thing on the road and
+  // the longest: it blocks a lane like a moving wall, so traffic
+  // behind it queues. A muscle car is the fastest civilian car short
+  // of the police interceptor, and the only one that can outrun a
+  // patrol car on a straight road. Both use the same box builder as
+  // every other kind; only their proportions and extras differ.
+  truck: { color: 0x5a7a4a, w: 2.3, l: 6.0, h: 1.6, cabin: 0.9, speed: 8 },
+  muscle: { color: 0x7a2e8a, w: 2.0, l: 4.5, h: 0.7, cabin: 0.55, speed: 14 },
 };
 
 export function buildCarMesh(kind) {
@@ -49,6 +57,31 @@ export function buildCarMesh(kind) {
     sign.scale.set(0.7, 0.25, 0.4);
     sign.position.set(0, 0.55 + spec.h + spec.cabin + 0.1, 0);
     group.add(sign);
+  }
+  if (kind === 'truck') {
+    // An open flatbed with one strapped crate: the truck reads as a
+    // working vehicle from any angle, and the crate is the only cargo
+    // in the game.
+    const bed = new THREE.Mesh(box, new THREE.MeshLambertMaterial({ color: 0x3a3f45 }));
+    bed.scale.set(spec.w * 0.9, 0.25, spec.l * 0.42);
+    bed.position.set(0, 0.55 + spec.h + 0.12, -spec.l * 0.22);
+    group.add(bed);
+    const crate = new THREE.Mesh(box, new THREE.MeshLambertMaterial({ color: 0xc9a24a }));
+    crate.scale.set(1.4, 1.1, 1.4);
+    crate.position.set(0, 0.55 + spec.h + 0.8, -spec.l * 0.22);
+    group.add(crate);
+  }
+  if (kind === 'muscle') {
+    // A hood scoop and a rear spoiler: the two boxes that make a
+    // muscle car read as one at street distance.
+    const scoop = new THREE.Mesh(box, bodyMat);
+    scoop.scale.set(0.7, 0.22, 1.0);
+    scoop.position.set(0, 0.55 + spec.h + 0.11, spec.l * 0.22);
+    group.add(scoop);
+    const spoiler = new THREE.Mesh(box, bodyMat);
+    spoiler.scale.set(spec.w * 0.9, 0.12, 0.3);
+    spoiler.position.set(0, 0.55 + spec.h + 0.3, -spec.l * 0.48);
+    group.add(spoiler);
   }
   const headMat = new THREE.MeshBasicMaterial({ color: 0xfff2b0 });
   for (const sx of [-1, 1]) {
@@ -113,7 +146,7 @@ export function createTraffic(city, rng, count, scene) {
     const x = pick.road === 'x' ? along : pick.line + lane;
     const z = pick.road === 'x' ? pick.line + lane : along;
     const angle = pick.road === 'x' ? (pick.dir > 0 ? Math.PI / 2 : -Math.PI / 2) : (pick.dir > 0 ? 0 : Math.PI);
-    const car = createCar(rng.pick(['sedan', 'taxi', 'van', 'sedan']), x, z, angle);
+    const car = createCar(rng.pick(['sedan', 'taxi', 'van', 'sedan', 'truck', 'muscle']), x, z, angle);
     car.road = pick.road;
     car.dir = pick.dir;
     car.lane = lane;

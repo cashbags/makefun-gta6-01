@@ -14,8 +14,8 @@ import { STEP, CITY, PLAYER, CAR, WANTED, COMBAT, MISSIONS, SAVE_KEY } from './c
 import { createRandom } from './rng.js';
 import { createCity, resolveCollisions } from './city.js';
 import { createCar, createTraffic, stepTraffic, stepPlayerCar, placeCar } from './vehicles.js';
-import { createPed, createCop, placePerson, stepPeds, stepCops, nearestPed } from './peds.js';
-import { createMissions, currentObjective, currentWaypoint, stepMissions, onMissionStart } from './missions.js';
+import { createPed, createCop, placePerson, stepPeds, stepCops, nearestPed, PED_COUNT } from './peds.js';
+import { createMissions, currentObjective, currentStage, currentWaypoint, stepMissions, onMissionStart } from './missions.js';
 import { createAudio } from './audio.js';
 import { createHud } from './hud.js';
 import { stageShot } from './shots.js';
@@ -58,8 +58,14 @@ for (const spot of city.parkedSpots) {
   parked.push(car);
 }
 const peds = [];
-for (let i = 0; i < 24; i += 1) {
-  const spot = rng.pick(city.pedSpots);
+// Shuffle a forked copy of the sidewalk list so no two pedestrians
+// start on the same point: rng.pick could hand the same spot to two
+// peds and stack them on one paving stone. The shuffle draws from
+// the fork, never from the main stream, so the traffic and police
+// sequences after this loop draw exactly as they did before it.
+const pedSpots = rng.fork().shuffle(city.pedSpots);
+for (let i = 0; i < PED_COUNT; i += 1) {
+  const spot = pedSpots[i % pedSpots.length];
   const ped = createPed(rng.fork(), spot.x + rng.range(-2, 2), spot.z + rng.range(-2, 2));
   placePerson(ped, scene);
   peds.push(ped);
@@ -607,7 +613,43 @@ function formatTime(seconds) {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-// --- Simulation step ---
+// --- Simulation step: what one 1/60 s tick does, in order ---
+// The step is deliberately boring and sequential, because every system
+// reads the results of the ones before it and the order is the design:
+//   1. Clock and input. game.time advances; readInput() merges the
+//      keyboard and the ?shot= autopilot into one input object, so the
+//      staged scenes drive the same code the player drives.
+//   2. Mission start effects, once per mission. The Heat job sets
+//      three stars here, so the player is hot before they move.
+//   3. The player. In a car, stepPlayerCar moves the car and the
+//      player follows it; on foot, WASD moves relative to the camera
+//      and the walk cycle swings the arms. Both paths end in
+//      resolveCollisions, which is also where the fence reports
+//      `bounded` and the toast fires. Running over a pedestrian and
+//      bumping traffic are checked here, while the memory of the
+//      impact is still fresh.
+//   4. Timers: fire and reload. The reload completes here, moving
+//      rounds from reserve into the magazine, so the HUD never shows
+//      a half-reloaded state.
+//   5. Traffic, pedestrians, and the dead-pedestrian respawn. The
+//      dead come back after 20 s, from a sidewalk at least 40 m from
+//      the player, so the street never empties and never respawns
+//      someone in the player's face.
+//   6. Pickups: spin, bob, and hand out health or ammo on touch,
+//      then hide for 30 s.
+//   7. Wanted: police spawn to match the stars, stars decay after
+//      25 quiet seconds, foot cops chase/shoot/bust, patrol cars
+//      chase and ram. A bust or a waste exits the step early through
+//      busted()/wasted(), which reset the player at the hospital.
+//   8. Missions: stepMissions reads the player and returns events;
+//      the step turns events into cash, toasts, sounds and saves.
+//   9. Beacon, player mesh, camera, audio, HUD. The camera chases
+//      from behind the player's heading (further and higher in a
+//      car), shake decays here, and the HUD reads the finished state.
+// Nothing in this list allocates per frame except the small arrays
+// the police and traffic checks build; the render loop runs the step
+// in a fixed-step accumulator so a slow frame advances the world in
+// whole 1/60 s ticks instead of one long jump.
 function step(dt) {
   game.time += dt;
   if (game.screen === 'playing') game.playSeconds += dt;
@@ -877,6 +919,9 @@ function step(dt) {
     ammo: player.ammo, reserveAmmo: player.reserveAmmo, inCar: player.inCar,
     carSpeed: player.car ? player.car.speed : 0,
     objective: currentObjective(missions), playSeconds: game.playSeconds,
+    // The countdown element reads these two: `timed` says a timed
+    // stage is live, `timer` says how many seconds it has left.
+    timer: missions.timer, timed: currentStage(missions)?.kind === 'timed',
   }, dt);
   hud.drawMinimap({
     city, traffic, policeCars, footCops,

@@ -20,6 +20,7 @@ export function createHud(document) {
   const clock = el('hud-clock');
   const toast = el('hud-toast');
   const speed = el('hud-speed');
+  const timer = el('hud-timer');
   const minimap = el('minimap');
   const mctx = minimap.getContext('2d');
   let toastTimer = 0;
@@ -57,6 +58,16 @@ export function createHud(document) {
       const secs = Math.floor(state.playSeconds % 60);
       clock.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
       speed.textContent = state.inCar ? `${Math.round(Math.abs(state.carSpeed) * 3.6)} km/h` : '';
+      // Timed missions get a countdown of their own, big and red under
+      // the objective line, because the objective text alone (a small
+      // line with "— 87s" appended) is easy to miss at speed. It shows
+      // only while a timed stage is live; every other stage hides it.
+      if (state.timed) {
+        timer.textContent = `${Math.max(0, Math.ceil(state.timer))}`;
+        timer.classList.remove('hidden');
+      } else {
+        timer.classList.add('hidden');
+      }
     },
     drawMinimap(world) {
       const S = minimap.width;

@@ -50,5 +50,20 @@ export function createRandom(seed) {
     fork() {
       return createRandom(Math.floor(next() * 4294967296));
     },
+    // A shuffled copy of a list, drawn from this stream. Shuffling
+    // consumes one draw per element, so it is deterministic like
+    // everything else here — but it still disturbs the caller's order,
+    // so prefer fork() first and shuffle on the fork when the order of
+    // the caller's later draws must stay put.
+    shuffle(list) {
+      const out = list.slice();
+      for (let i = out.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(next() * (i + 1));
+        const tmp = out[i];
+        out[i] = out[j];
+        out[j] = tmp;
+      }
+      return out;
+    },
   };
 }

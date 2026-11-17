@@ -40,6 +40,24 @@ export const PLAYER = {
   maxHealth: 100,
   maxArmor: 100,
 };
+// Tuning, as one set (see DESIGN.md for the reasoning behind the
+// numbers): the player walks at 5.2 m/s and runs at 8.5, so a 46 m
+// block takes about six seconds at a run — a street, not a hike.
+// Cars top out at 34 m/s (about 122 km/h) with accel 16, so a car
+// crosses the 314 m city in roughly fifteen seconds flat out and the
+// 100-second timed drop is tight only if the player dawdles or gets
+// stuck in traffic. Steering bites harder at low speed (CAR.steer
+// 1.9, scaled up as speed falls), which is what makes parking-lot
+// turns possible and highway turns stable in the same model. Wanted
+// decays one star per 25 quiet seconds: a one-star heat from a
+// stolen car fades while the player drives away, three stars from
+// the drop demand a real escape. The pistol does 34 damage — two
+// hits for a cop (60 health), one for a pedestrian (30) — lethal
+// enough to matter, weak enough that shooting out of five stars is
+// a bad plan. Armour absorbs 60% of incoming damage. Rewards climb
+// 500 → 1200 → 1500 → 2000 → 5000 so the last job pays more than
+// the first four together, and the $300 bust fine stings early
+// (more than the starting $250) and becomes trivial late.
 export const CAR = {
   accel: 16,
   brake: 30,

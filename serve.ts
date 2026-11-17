@@ -10,6 +10,15 @@
 // docs are not reachable from the game page; the ?shot= scenes the
 // screenshots come from are served the same way, from the same files
 // the player gets.
+//
+// Two details worth knowing before changing it: the port flag is
+// `--port <n>` and anything that is not a positive integer below
+// 65536 falls back to 8080 instead of crashing, so a typo in the
+// port still serves the game somewhere findable; and the server
+// binds 127.0.0.1 only, so the game is reachable from this machine
+// and nobody else's — there is no remote play here by design, and
+// no CORS or range handling because a local static game needs
+// neither.
 import { createReadStream, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, join, normalize, resolve, sep } from 'node:path';

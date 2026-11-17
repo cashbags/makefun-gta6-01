@@ -12,6 +12,8 @@ export function createAudio() {
   let engineGain = null;
   let sirenOsc = null;
   let sirenGain = null;
+  let tensionOsc = null;
+  let tensionGain = null;
   let musicTimer = null;
   let musicStep = 0;
   let muted = false;
@@ -46,6 +48,24 @@ export function createAudio() {
       sirenOsc.connect(sirenGain);
       sirenGain.connect(master);
       sirenOsc.start();
+      // The tension drone: a low sawtooth a semitone above the bass
+      // root (A 55 Hz against Bb 58.27 Hz), silent until the heat hits
+      // three stars, then fading in under the siren. Dissonance is
+      // the cheapest way to make three stars feel different from one:
+      // the player hears the city turn on them before they see the
+      // extra patrol cars.
+      tensionOsc = ctx.createOscillator();
+      tensionOsc.type = 'sawtooth';
+      tensionOsc.frequency.value = 58.27;
+      tensionGain = ctx.createGain();
+      tensionGain.gain.value = 0;
+      const tensionFilter = ctx.createBiquadFilter();
+      tensionFilter.type = 'lowpass';
+      tensionFilter.frequency.value = 220;
+      tensionOsc.connect(tensionFilter);
+      tensionFilter.connect(tensionGain);
+      tensionGain.connect(master);
+      tensionOsc.start();
       state.started = true;
       startMusic();
       return true;
@@ -189,7 +209,8 @@ export function createAudio() {
       setTimeout(() => blip(293, 0.3, 0.2, 'square'), 300);
     },
     // Called every frame: engine pitch follows speed, siren wails on a
-    // two-tone cycle while wanted > 0 and police are near.
+    // two-tone cycle while wanted > 0 and police are near, and the
+    // tension drone fades in at three stars and out below it.
     update(speed, wanted, policeNear) {
       if (!ctx || muted) return;
       try {
@@ -203,6 +224,7 @@ export function createAudio() {
         } else {
           sirenGain.gain.setTargetAtTime(0, t, 0.2);
         }
+        tensionGain.gain.setTargetAtTime(wanted >= 3 ? 0.05 : 0, t, 0.5);
       } catch { /* see above */ }
     },
   };

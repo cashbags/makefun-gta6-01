@@ -329,6 +329,113 @@ export function createCity(rng) {
     }
   }
 
+  // The beach: the sand strip south of the city is not empty. A
+  // lifeguard tower watches the water, and three umbrellas with
+  // loungers give the marina a place to be that is not a mission
+  // marker. Everything here is fixed-position (no RNG draws), so the
+  // beach costs the seeded stream nothing.
+  {
+    const sandMat = new THREE.MeshLambertMaterial({ color: 0xe0cf9e });
+    const towerMat = new THREE.MeshLambertMaterial({ color: 0xf2f2e8 });
+    const towerRoof = new THREE.MeshLambertMaterial({ color: 0xc23b2e });
+    const legMat = new THREE.MeshLambertMaterial({ color: 0x8a6f4d });
+    // Lifeguard tower at the west end of the beach.
+    const towerX = -60;
+    const towerZ = half + 5;
+    for (const [lx, lz] of [[-1.2, -1.2], [1.2, -1.2], [-1.2, 1.2], [1.2, 1.2]]) {
+      const leg = new THREE.Mesh(boxGeo, legMat);
+      leg.scale.set(0.3, 3.4, 0.3);
+      leg.position.set(towerX + lx, 1.7, towerZ + lz);
+      group.add(leg);
+    }
+    const cabin = new THREE.Mesh(boxGeo, towerMat);
+    cabin.scale.set(3.6, 2.2, 3.6);
+    cabin.position.set(towerX, 4.5, towerZ);
+    group.add(cabin);
+    const roof = new THREE.Mesh(boxGeo, towerRoof);
+    roof.scale.set(4.4, 0.3, 4.4);
+    roof.position.set(towerX, 5.8, towerZ);
+    group.add(roof);
+    colliders.push({ x: towerX, z: towerZ, hx: 1.8, hz: 1.8 });
+    // Umbrellas and loungers down the sand, facing the water.
+    const umbrellaCols = [0xc23b2e, 0xf2c94c, 0x4a6fa5];
+    for (let i = 0; i < 3; i += 1) {
+      const ux = -20 + i * 30;
+      const uz = half + 5;
+      const pole = new THREE.Mesh(boxGeo, legMat);
+      pole.scale.set(0.18, 2.6, 0.18);
+      pole.position.set(ux, 1.3, uz);
+      group.add(pole);
+      const canopy = new THREE.Mesh(boxGeo, new THREE.MeshLambertMaterial({ color: umbrellaCols[i] }));
+      canopy.scale.set(4.2, 0.25, 4.2);
+      canopy.position.set(ux, 2.7, uz);
+      canopy.rotation.y = Math.PI / 4;
+      group.add(canopy);
+      const lounger = new THREE.Mesh(boxGeo, sandMat);
+      lounger.scale.set(1.0, 0.4, 2.4);
+      lounger.position.set(ux + 3.4, 0.2, uz);
+      group.add(lounger);
+    }
+  }
+
+  // The plaza: block (4,2) on the east side was an empty block (it is
+  // in the landmark set but has no landmark building), so it becomes
+  // the city's square — a fountain, benches and trees, all fixed
+  // position, no RNG. The fountain basin is a collider; the benches
+  // and trees are low enough to walk around, with trunk colliders on
+  // the trees like the park's.
+  {
+    const p = blockCentre(4, 2);
+    const stoneMat = new THREE.MeshLambertMaterial({ color: 0x9a938a });
+    const basinWater = new THREE.MeshLambertMaterial({ color: 0x2e7f9e });
+    const benchMat = new THREE.MeshLambertMaterial({ color: 0x8a6f4d });
+    const basin = new THREE.Mesh(boxGeo, stoneMat);
+    basin.scale.set(12, 1.0, 12);
+    basin.position.set(p.x, 0.5, p.z);
+    group.add(basin);
+    const waterTop = new THREE.Mesh(
+      new THREE.PlaneGeometry(10, 10),
+      basinWater,
+    );
+    waterTop.rotation.x = -Math.PI / 2;
+    waterTop.position.set(p.x, 1.05, p.z);
+    group.add(waterTop);
+    const pillar = new THREE.Mesh(boxGeo, stoneMat);
+    pillar.scale.set(1.6, 3.4, 1.6);
+    pillar.position.set(p.x, 2.7, p.z);
+    group.add(pillar);
+    const cap = new THREE.Mesh(boxGeo, stoneMat);
+    cap.scale.set(3.2, 0.5, 3.2);
+    cap.position.set(p.x, 4.6, p.z);
+    group.add(cap);
+    colliders.push({ x: p.x, z: p.z, hx: 6, hz: 6 });
+    for (const [bx, bz, along] of [
+      [p.x - 14, p.z, 0], [p.x + 14, p.z, 0],
+      [p.x, p.z - 14, 1], [p.x, p.z + 14, 1],
+    ]) {
+      const bench = new THREE.Mesh(boxGeo, benchMat);
+      bench.scale.set(along ? 4.4 : 1.2, 0.5, along ? 1.2 : 4.4);
+      bench.position.set(bx, 0.25, bz);
+      group.add(bench);
+    }
+    const trunkMat = new THREE.MeshLambertMaterial({ color: 0x6b4a2f });
+    const leafMat = new THREE.MeshLambertMaterial({ color: 0x3f7d3a });
+    for (const [tx, tz] of [
+      [p.x - 16, p.z - 16], [p.x + 16, p.z - 16],
+      [p.x - 16, p.z + 16], [p.x + 16, p.z + 16],
+    ]) {
+      const trunk = new THREE.Mesh(boxGeo, trunkMat);
+      trunk.scale.set(0.7, 3, 0.7);
+      trunk.position.set(tx, 1.5, tz);
+      group.add(trunk);
+      const leaves = new THREE.Mesh(boxGeo, leafMat);
+      leaves.scale.set(3.4, 2.6, 3.4);
+      leaves.position.set(tx, 4.2, tz);
+      group.add(leaves);
+      colliders.push({ x: tx, z: tz, hx: 0.5, hz: 0.5 });
+    }
+  }
+
   // Street lamps along every road, and trees on alternating corners.
   {
     const poleMat = new THREE.MeshLambertMaterial({ color: 0x3a3f45 });
@@ -364,10 +471,10 @@ export function createCity(rng) {
   for (const c of centres) {
     for (let s = -half + 22; s < half - 10; s += 44) {
       if (rng.chance(0.45)) {
-        parkedSpots.push({ x: c + CITY.road / 2 - 2.6, z: s, angle: rng.chance(0.5) ? 0 : Math.PI, kind: rng.pick(['sedan', 'taxi', 'van', 'sport']) });
+        parkedSpots.push({ x: c + CITY.road / 2 - 2.6, z: s, angle: rng.chance(0.5) ? 0 : Math.PI, kind: rng.pick(['sedan', 'taxi', 'van', 'sport', 'muscle', 'truck']) });
       }
       if (rng.chance(0.35)) {
-        parkedSpots.push({ x: c - CITY.road / 2 + 2.6, z: s + 18, angle: rng.chance(0.5) ? 0 : Math.PI, kind: rng.pick(['sedan', 'taxi', 'sport']) });
+        parkedSpots.push({ x: c - CITY.road / 2 + 2.6, z: s + 18, angle: rng.chance(0.5) ? 0 : Math.PI, kind: rng.pick(['sedan', 'taxi', 'sport', 'muscle']) });
       }
     }
   }

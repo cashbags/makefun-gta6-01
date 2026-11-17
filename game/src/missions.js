@@ -23,6 +23,16 @@ import { MISSIONS } from './config.js';
 // that placement is load-bearing, not incidental, and the boundary
 // probe in tools/ asserts it on every verification run.
 const STORY = [
+  // The five jobs, in the order the player meets them. Each job is one
+  // idea in one sentence, and the stage kinds are the vocabulary for
+  // those ideas — reach, steal, timed, evade, grab — introduced one
+  // per job so the finale is a combination, not a new rule. The
+  // waypoints are all places the player has already seen: the docks
+  // (west edge, outside the grid but inside the fence), the park, the
+  // garage, the flat, the bank, the marina. No job sends the player
+  // somewhere new, because a mission should test driving and evasion,
+  // not map-reading. Rewards climb with the risk, and the last job
+  // pays more than the first four together.
   {
     id: 'fixer', title: 'The Fixer',
     intro: 'Marisol Vega runs this town from the docks. Go meet her. Walk or drive — nobody cares yet.',

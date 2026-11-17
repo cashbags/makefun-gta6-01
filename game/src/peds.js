@@ -11,6 +11,13 @@ import { resolveCollisions, isOnRoad } from './city.js';
 const SHIRTS = [0xd95f4b, 0x4b8fd9, 0x6fbf5a, 0xe0c04a, 0xb06fd9, 0xe8e2d5, 0x3a3f45, 0xd97ba8];
 const PANTS = [0x2a2f38, 0x4a3a2a, 0x5a5f6a, 0x2f4a2f];
 
+// How many pedestrians walk the city at once. main.js spawns exactly
+// this many and the respawn loop keeps the count: the dead come back,
+// so the number is a population, not a spawn budget. Twenty-four is
+// enough that every street has someone on it and few enough that the
+// sidewalk never looks like a crowd.
+export const PED_COUNT = 24;
+
 export function buildPersonMesh(shirt, pants, police) {
   const group = new THREE.Group();
   const box = new THREE.BoxGeometry(1, 1, 1);

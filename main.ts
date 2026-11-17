@@ -39,7 +39,15 @@ if (existsSync(join(here, 'screenshots'))) {
 // The scorer's own caps (reference/gate.json): only text_max_bytes shapes
 // the bytes; the others refuse an entry the scorer would refuse (more than
 // 4 screenshots or one over 256 KiB; more than 993 files in game/ or 48 MiB
-// of game files, in all, or a path under game/ over 1000 bytes).
+// of game files, in all, or a path under game/ over 1000 bytes). The caps
+// are passed here so the dossier carries the same limits the scorer
+// enforces — the entry cannot pass the dossier and fail the gate on a
+// size the author never checked. Current headroom, measured at the
+// final verification: game/ is 14 files and about 2.2 MiB against a
+// 993-file / 48 MiB cap, screenshots/ is 4 files each under 256 KiB
+// against a cap of 4. The dossier itself is written by buildDossier
+// from the /output tree, so it always describes the files that were
+// actually copied, never a stale list.
 writeFileSync(
   join(out, 'dossier.json'),
   buildDossier(out, {

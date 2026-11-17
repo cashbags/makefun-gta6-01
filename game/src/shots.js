@@ -5,6 +5,20 @@
 // seed always gives the same frame. No scene reads the clock: the step
 // count is fixed, so two captures of one shot are byte-identical renders
 // apart from JPEG encoding.
+//
+// The staging contract, so a later edit does not silently break the
+// screenshots: (1) every shot starts from a fresh world at ?seed=1 and
+// runs a fixed number of steps — start 5 s on foot, drive 4 s, chase
+// 4.5 s, mission 3 s — so the frame is a function of the seed and the
+// code, nothing else; (2) the autopilot only writes ctx.auto, the same
+// scripted-input object the player never touches, so the staged drive
+// is the real driving model with a scripted hand on it; (3) the camera
+// is placed from the player's heading in each shot, never from a
+// free camera, so the frame is a view a player could actually have;
+// (4) the mission shot stages at the docks with the first mission
+// live and the beacon up, ten metres inside the west fence, so the
+// fence line shows behind the containers and the shot proves the
+// boundary is visible in play, not just in code.
 import { STEP, CITY } from './config.js';
 
 const SAMPLE = STEP;
