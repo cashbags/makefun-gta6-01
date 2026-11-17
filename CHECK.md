@@ -25,8 +25,9 @@ this session's runs printed.
 
 - `MAKEFUN_OUTPUT_DIR=/tmp/gta6-out1 node main.ts`, same into
   `/tmp/gta6-out2`, `diff -r`: byte-identical. Repeated after the
-  fence edits: still byte-identical (dossier
-  `sha256 4a3b2aa12b60bec8f7bd663e4924719054b84bf628a617f76916dd4716fee034`).
+  fence edits and again at the final commit: still byte-identical
+  (dossier
+  `sha256 1c2634ee5116319857cbee64acb57025ffd4ef31ca1b06dee05195729080605e`).
 - The fence and hills draw no RNG, so the seeded city, parked cars
   and opening traffic are unchanged by the fence work.
 - The same `?shot=` URL staged twice gives the same frame (fixed

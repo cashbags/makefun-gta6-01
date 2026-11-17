@@ -13,8 +13,8 @@ figure.
   `/tmp/gta6-out2`, then `diff -r /tmp/gta6-out1 /tmp/gta6-out2`:
   no differences. Ran twice in this session — once on the original
   commit and once after the fence work — byte-identical both times.
-  The dossier hash after the fence work is
-  `sha256 4a3b2aa12b60bec8f7bd663e4924719054b84bf628a617f76916dd4716fee034`.
+  The dossier hash at the final commit is
+  `sha256 1c2634ee5116319857cbee64acb57025ffd4ef31ca1b06dee05195729080605e`.
 - The game code never reorders the seeded stream: the fence and hills
   in `city.js` use fixed positions and index-derived heights and draw
   no numbers from the RNG, so the city, the parked cars and the opening
