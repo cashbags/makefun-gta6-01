@@ -5,7 +5,17 @@
 // in: it copies game/ and screenshots/ from beside this file to /output
 // and writes /output/dossier.json, the summary the judge reads, with the
 // vendored make.fun library (vendor/makefun-game.ts, the scorer's own
-// copy, unchanged).
+// copy, unchanged — never edit that file; the scorer compares it byte
+// for byte with its own copy).
+//
+// The program itself is deterministic: it copies files and writes one
+// dossier, reading nothing from the clock or the network, so running it
+// twice into two directories gives byte-identical outputs. That is
+// checked on every verification pass with `diff -r` (see TESTS.md).
+// The game it copies is deterministic for a different reason: one
+// seeded RNG builds the city from ?seed=, and the fence and hills at
+// the city limit draw no randomness, so the edge never reshuffles the
+// world behind it.
 //
 // Serve it locally with `node serve.ts`, then open http://localhost:8080.
 // Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:

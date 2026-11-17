@@ -77,6 +77,11 @@ export function placePerson(p, scene) {
 
 // Pedestrians walk their sidewalk axis; at the city edge they turn around.
 // A scare (gunshot, crash, car bearing down) makes them run the other way.
+// They turn at CITY.half - 2, well inside the BOUNDS fence (half + 14),
+// so they never reach the fence: the sidewalks end at the last street and
+// the peds stay on the sidewalks. That is deliberate — a pedestrian
+// wandering out to the fence would look lost, and the fence is the
+// player's boundary, not the city's population boundary.
 export function stepPeds(peds, city, rng, dt, scare) {
   for (const p of peds) {
     if (p.dead) continue;

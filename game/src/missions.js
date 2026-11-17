@@ -7,12 +7,21 @@
 // main.js reads the events this module emits (crime, reward, complete).
 import { MISSIONS } from './config.js';
 
-// Stage kinds:
+// Stage kinds — the vocabulary every job is written in, in the order
+// the player meets them, so each job teaches one verb and the finale
+// combines them instead of introducing a new rule:
 //  reach  — arrive within `radius` of the named marker
 //  steal  — enter the mission's target car (markers.sportscar)
 //  timed  — reach the marker before `seconds` run out
 //  evade  — survive until wanted stars fall to 0 (then reach the marker)
 //  grab   — reach the vault, then escape to the marker with wanted >= 3
+// The markers are all places the player has already seen (docks, park,
+// garage, flat, bank, marina), never a new corner of the map: a mission
+// tests driving and evasion, not map-reading. The docks and marina
+// markers sit just outside the street grid but inside the BOUNDS fence
+// (docks x = -161, marina z = 159), so the fence never blocks a job —
+// that placement is load-bearing, not incidental, and the boundary
+// probe in tools/ asserts it on every verification run.
 const STORY = [
   {
     id: 'fixer', title: 'The Fixer',

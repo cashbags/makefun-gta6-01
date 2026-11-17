@@ -35,7 +35,13 @@ function autopilot(ctx) {
   // Keep going the way the car already points; the target is 20 m ahead
   // on the road the car is nearest to. Near the city edge the target flips
   // to 20 m the other way, so the car U-turns on its road instead of
-  // driving out of town onto the bare ground beyond the grid.
+  // driving out of town onto the bare ground beyond the grid. The flip
+  // line (half - 14) sits well inside the BOUNDS fence (half + 14), so
+  // the autopilot never tests the fence at all: the staged drive and
+  // chase shots stay on the streets, and the fence only appears in a
+  // shot if the camera happens to face it — which is why the mission
+  // shot, staged at the docks 10 m inside the west fence, shows the
+  // fence line behind the containers.
   const ahead = car.speed >= 0 ? 20 : -20;
   const edge = CITY.half - 14;
   let tx;

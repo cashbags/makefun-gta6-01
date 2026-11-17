@@ -108,6 +108,83 @@ The same seed and the same shot always stage the same frame. Rendering
 and audio may use the wall clock for visuals, but nothing in the
 simulation reads `Math.random()` or `Date.now()`.
 
+## The city limit
+
+Solmar Bay ends at a fence, not at an invisible wall. The playable
+rectangle is `BOUNDS` in `config.js`: 14 m past the last street on the
+east and west, 6 m past it to the north, 10 m toward the water to the
+south. Those numbers are not round for the sake of it — they are the
+smallest rectangle that still contains the two mission places outside
+the street grid (the docks at x = −161, the marina at z = 159), so the
+fence never blocks a job. `city.js` draws the fence on exactly that
+rectangle (posts every 8 m, two rails) with a ring of hills behind it
+on the land sides; the south side has no fence because the sea is the
+boundary there. The hills cost the seeded RNG nothing — their heights
+come from their index — so adding the edge did not reshuffle the city
+behind it. `resolveCollisions` clamps every mover to the rectangle and
+reports `bounded`, so the car thuds, the HUD says why, and the minimap
+draws the same rectangle in amber. The previous limit (60 m past the
+grid) let a car drive onto bare concrete with nothing to look at; the
+new one keeps the drive inside the place that was built.
+
+## Tuning the numbers
+
+The constants in `config.js` are tuned as one set, not one by one. The
+player walks at 5.2 m/s and runs at 8.5, so crossing a 46 m block on
+foot takes about six seconds at a run — long enough to feel like a
+street, short enough that the docks job never drags. Cars top out at
+34 m/s (about 122 km/h) with acceleration 16, so a car crosses the
+whole 314 m city in roughly fifteen seconds at full speed and the
+100-second timed drop is tight only if the player dawdles or gets
+stuck in traffic. The wanted clock decays one star per 25 quiet
+seconds, which means a one-star heat from a stolen car fades on its
+own while the player drives away, but three stars from the drop demand
+a real escape. The pistol does 34 damage, so a cop (60 health) takes
+two hits and a pedestrian (30) one — lethal enough to matter, weak
+enough that shooting your way out of five stars is a bad plan. The
+bust range (2.4 m held for 2 s) is generous to the cops on purpose:
+getting caught should feel inevitable once they are on you, not like
+a dice roll. Rewards climb 500 → 1200 → 1500 → 2000 → 5000 so the
+last job pays more than the first four together, and the $300 bust
+fine stings early (more than the starting $250) and becomes trivial
+late — the fine is a lesson for beginners, not a tax on experts.
+
+## Mission design
+
+Each job is one idea, stated in one sentence, and the stage kinds are
+the vocabulary for those ideas: reach (go there), steal (take the
+car), timed (go there fast), evade (lose the heat, then go there),
+grab (take the cash, then run). The five jobs use the vocabulary in
+escalating order — the first job is a walk, the second is a theft, the
+third adds a clock, the fourth adds the police, the fifth combines
+everything — so the player learns one verb per job and the finale is
+a combination, not a new rule. Waypoints are always places the player
+has already seen (the docks, the park, the garage, the flat, the
+bank, the marina), never a new corner of the map, because a mission
+should test driving and evasion, not map-reading. The beacon pillar
+and the minimap diamond point at the same place so the player can
+navigate by looking at the world or at the map, whichever they
+prefer. A failed timed drop restarts that job cleanly rather than
+failing the story: the punishment for being slow is lost time, not a
+lost save.
+
+## Audio design
+
+The sound is built, not recorded. Two continuous voices carry the
+game: a sawtooth engine whose pitch tracks speed (45 Hz at rest,
+rising about 4 Hz per m/s) and a two-tone siren that only sounds while
+the player is wanted and the police are near, alternating 700/950 Hz
+about once a second. Everything else is a one-shot on top of that
+bed: gunshots and crashes are filtered noise bursts (a crash is
+longer and lower than a shot, a fence thud shorter and lower than a
+crash, so the three impacts are distinguishable by ear), pickups and
+mission chimes are short sine blips in rising pairs and triads, and
+the bassline is a 16-step A-minor loop at 112 BPM with a hat tick on
+the off-beats. The music never changes with the mission — it is the
+city's hum, not a soundtrack that telegraphs the story. All of it is
+guarded: a headless run with no audio context never throws, and M
+mutes the master gain without stopping the sequencer.
+
 ## What was deliberately left out
 
 No car health or vehicle damage model, no melee, no day/night cycle, no

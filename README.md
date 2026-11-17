@@ -13,7 +13,17 @@ node serve.ts
 # then open http://localhost:8080
 ```
 
-WASD walk/drive, mouse-drag camera, E steal &amp; exit cars, click shoot, R reload, Space jump, Shift run, Esc pause &amp; save, M sound. Follow the amber beacon to the next job.
+WASD walk/drive, mouse-drag camera, E steal &amp; exit cars, click shoot, R reload, Space jump, Shift run, Esc pause &amp; save, M sound. Follow the amber beacon to the next job. The city ends at a fence with hills behind it (and the sea to the south) — hitting the fence thuds and the HUD says so; the docks and the marina sit just inside it, so no mission is ever blocked by the edge.
+
+## Verification
+
+Independently re-verified in a real browser (headless Chromium):
+deterministic `main.ts` output (two runs byte-identical), a 24-check
+live play-test (start, steal, drive, shoot, missions 1–2, busted,
+save/reload/continue) all passing with zero page errors, and a
+9-check fence probe (the car stops at the fence on all four sides,
+the docks and marina stay reachable). See `TESTS.md` and `CHECK.md`
+for the runs and the numbers.
 
 ## How it is built
 

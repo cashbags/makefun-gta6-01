@@ -1,9 +1,15 @@
 // serve.ts — a tiny static server for game/ (Node 22, standard library
 // only), so SOLMAR can be played locally without a build step:
-// `node serve.ts` serves game/ on http://localhost:8080. It sends the MIME
-// types a browser game needs, refuses any path outside game/, and otherwise
-// does nothing clever: a development convenience, not a web server for the
-// internet.
+// `node serve.ts` serves game/ on http://localhost:8080, and
+// `node serve.ts --port 8904` serves it on 8904 — the port the
+// verification tools (tools/playtest.mjs, tools/shots.mjs,
+// tools/boundary-probe.mjs) expect. It sends the MIME types a browser
+// game needs, refuses any path outside game/, and otherwise does nothing
+// clever: a development convenience, not a web server for the internet.
+// It serves only game/, never the repo root, so the screenshots and the
+// docs are not reachable from the game page; the ?shot= scenes the
+// screenshots come from are served the same way, from the same files
+// the player gets.
 import { createReadStream, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, join, normalize, resolve, sep } from 'node:path';

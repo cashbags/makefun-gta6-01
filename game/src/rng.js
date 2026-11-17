@@ -4,6 +4,20 @@
 // builds the same city and the same opening traffic. Rendering and audio may
 // use the wall clock for visuals, but nothing in the simulation reads
 // Math.random() or Date.now(): determinism is a property of this file.
+//
+// The contract, stated plainly so a later edit does not break it by
+// accident: (1) every simulation draw goes through the stream created
+// from the ?seed= value — never through Math.random, never through a
+// second unseeded generator; (2) the order of draws is part of the
+// world, so inserting a draw before existing ones reshuffles
+// everything after it — new systems that need randomness take a fork()
+// of their own instead of drawing from the shared stream; (3) anything
+// that must not move the world at all (the fence, the hills, the
+// minimap) draws nothing and derives its numbers from fixed constants
+// or its own index. Forks are cheap and deterministic: fork() draws
+// one number from the parent and seeds a fresh mulberry32 with it, so
+// a subsystem's sequence is stable even when another subsystem is
+// added, removed or reordered.
 export function createRandom(seed) {
   let a = seed >>> 0;
   function next() {
