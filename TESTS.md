@@ -225,3 +225,29 @@ rule, suspect the RNG order first: a draw inserted before
 existing draws reshuffles everything after it, and the symptom
 is a parked car, a pedestrian or a patrol car in a different
 place, not an error message.
+
+## Numbers that move between runs
+
+Some numbers in this file are ranges, not single figures, and
+that is honest rather than vague: headless Chromium on
+SwiftShader does not run at a fixed frame rate, so anything
+measured in wall-clock time varies. The play-test's drive
+distance is 24.0–25.6 m across runs (the car holds W for the
+same number of game steps, but the steps themselves are paced
+by frames, and a slow frame stretches the wait). The timer
+probe's countdown ticks slower than wall time for the same
+reason: the fixed-step accumulator caps each frame at 0.25 s of
+game time, so at 10 frames per second the game runs at about
+half speed and the timer falls one second per two wall seconds.
+The busted check is the most timing-sensitive step in the
+play-test (a foot cop must reach the player and hold them for
+2 s), and it passed on every run in this session, but a slower
+machine could make it take longer — the probe waits up to 40 s
+for it. What does not move between runs: the dossier hash for a
+fixed repo state, the screenshot bytes for a fixed repo state
+and seed (the staged scenes run a fixed number of steps), the
+clamped fence coordinates (exact: −163, 171, 167, −171), the
+mission payouts, and the kit check's pass/fail counts. If a
+re-run ever changes one of the fixed numbers, that is a real
+regression, not timing noise — look at the RNG order and the
+step count first.

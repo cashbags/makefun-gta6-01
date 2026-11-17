@@ -456,6 +456,75 @@ sometimes the point. The probes live in `../tools/`, not in the
 entry, so they never ship with the game and never count toward
 its caps.
 
+## The story, beat by beat
+
+The five jobs, as the player actually experiences them, with the
+timings a playtester measured rather than the timings the design
+assumed. Job one, The Fixer, is a walk: the player starts on the
+road at (−30, 14), follows the amber beacon west to the docks,
+and meets Marisol. On foot it takes about a minute; in a stolen
+car, half that. The job teaches the beacon, the minimap and the
+objective line, and it pays $500 — enough that the player
+notices money exists, not enough to matter. Job two, Hot Wheels,
+is a theft: the red sports car waits by the park, the player
+presses E, and the game answers with a wanted star and a toast.
+The lesson is the core verb (steal a car, get a star) and the
+reward is the car itself as much as the $1,200: the sports car
+is the fastest civilian car in the game, and the player keeps it
+until they abandon it. Job three, The Drop, is the first job
+with a clock: pick up the package at the docks, deliver it to
+Vega Motors across town in 100 seconds. The drive takes about
+45 seconds flat out and about 70 through traffic, so the clock
+is generous for a clean run and brutal for a player who stops to
+fight the police — which is the intended lesson, that the drop
+is a driving job, not a combat job. Failing it restarts the job,
+not the story. Job four, Heat, starts with three stars already
+lit (the drop went loud) and asks the player to lose them, then
+walk to the safehouse. The evade stage is the only stage with
+no waypoint to drive to — the objective is a state (wanted = 0),
+and the beacon points at the safehouse only once the heat is
+gone, so the player cannot cheat it by driving straight there
+while the police are still watching. Job five, The Big Score,
+is two stages in one: reach the bank, then grab the cash (which
+trips a three-star alarm) and escape to the marina. The escape
+is the longest drive in the story — bank to marina, across the
+whole city, with four patrol cars in the table — and the $5,000
+pays more than the first four jobs together. After it, the
+story screen shows the run's numbers (cash, takedowns, cars
+stolen, time in Solmar Bay) and the game opens into free roam:
+the city stays open, the police stay away, and the player can
+drive the fence line, visit the plaza, or steal a truck for the
+sake of it.
+
+## The soundtrack: one bassline, played straight
+
+The music is sixteen steps, A minor, 112 BPM, one note per eighth
+note, with a hat tick on the off-beats: A, rest, A, C, A, rest, G,
+A, A, rest, A, C, E, rest, D, C (55, 0, 55, 65.41, 55, 0, 49, 55,
+55, 0, 55, 65.41, 82.41, 0, 73.42, 65.41 Hz). It never changes
+with the mission, never swells, never stops: it is the city's hum,
+not a soundtrack that telegraphs the story. The sequencer
+schedules one bar ahead, eight steps at a time, forever, while
+the audio context lives, and the mute key (M) silences the master
+gain without stopping the sequencer, so unmuting resumes in
+phase. The two continuous voices sit on top of it — the engine
+(sawtooth, 45 Hz at rest, +4.2 Hz per m/s) and the siren (square,
+700/950 Hz alternating about once a second while wanted and
+police are near) — and the tension drone (sawtooth, 58.27 Hz, a
+semitone above the bass root, low-passed at 220 Hz) fades in at
+three stars. The choice of a semitone is deliberate: it is the
+smallest interval that reads as wrong, so the drone sounds like
+the city turning on the player rather than like a new piece of
+music starting. The one-shots are all short on purpose — a
+gunshot is 0.14 s of filtered noise, a crash 0.3 s, a fence thud
+0.15 s, a pickup two blips 90 ms apart, a mission chime three
+blips climbing 523 → 659 → 784 Hz — because a sound that lasts
+longer than the event it marks becomes noise the player tunes
+out, and a sound that is shorter than the event feels like a
+hiccup. Nothing in the audio reads the simulation except speed
+and wanted level, so the soundtrack can never desync from the
+game: it is a function of two numbers, not a timeline.
+
 ## Numbers the judge sees
 
 The judge does not play the game: it reads the dossier's outline
