@@ -326,3 +326,35 @@ committed repo where a commit is named.
   always did — audio is decoration, and no simulation state ever
   reads it. `serve.ts` answers `GET /healthz` with
   `{"ok":true,"files":16,"bytes":2315993}` for the current tree.
+
+## How to reproduce the R2 probe
+
+The 30-check probe is a throwaway script (it lived in
+`/tmp/r2-probe.mjs` during the verification session, run from
+`tools/` so `playwright-core` resolves). The steps, so a future
+verifier can re-run them by hand in the browser console instead:
+
+- Airport: read `window.__solmar.city.markers` (airport, hangar,
+  runway, shuttle), count `window.__solmar.peds` (32) and check
+  `parked` for a `shuttle` with `mission === 'shuttle'`.
+- Weather: read the `#hud-weather` chip ("10:10 · Day" a few
+  seconds in), `weather.grip` (1), `weather.windows` (5, first
+  start ≥ 360). Set `weather.time = 300` and watch the phase turn
+  Night with sun intensity 0.18; set `weather.time` to
+  `windows[0].start + 15`, wait for the 10 s ramp, and watch the
+  rain pass 0.5 and the grip fall below 0.9. Set `weather.time`
+  back to 0 afterwards, or the clock stays in the window.
+- Missions: set `missions.index = 5`, `missions.stage = 0` and
+  `game.missionStartApplied = 5`, teleport the player to the
+  airport marker (the reach stage advances), then beside the
+  shuttle and press E (steal advances), then teleport player and
+  car to the docks (mission 6 completes, +$3,000). Repeat the
+  pattern for 6 (hangar, grab, safehouse, +$6,500) and 7 (runway,
+  set `wanted = 0` for the evade stage, marina, story complete).
+- Roadblock: steal a car, set `wanted = 4`, hold W; the roadblock
+  appears within a minute (`game.roadblock` non-null, 3
+  colliders). Set `wanted = 0` and it clears. Interceptors appear
+  in `policeCars` at 4 stars.
+- Heat: set `wanted = 2` and `heatTotal = 9`, pause, SAVE, reload
+  the page, CONTINUE: `wanted` is 2, `heatTotal` is 9, and
+  `#hud-heat` reads "HEAT 9★ TOTAL".

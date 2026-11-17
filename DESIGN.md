@@ -726,3 +726,71 @@ the same `AIRPORT` bounds the 3D district uses, and its scale grew
 from half + 70 to half + 80 so the extended north fence and the whole
 runway fit inside it. The timed-mission countdown moved from 108 px
 to 142 px so it never overlaps the arc line.
+
+## The Airport Arc, beat by beat
+
+How the three missions actually drive, so a reader can follow the
+arc on the map without playing it:
+
+- Runway Job. The beacon points north, up the last street and the
+  access road (x = 20) to the terminal forecourt. The player
+  arrives on foot or in a car, walks to the shuttle at the kerb
+  (34, −184) and takes it with E — the shuttle is the only
+  mission-flagged car besides the red sports car, so the steal
+  stage cannot complete by accident. Then 120 seconds to drive the
+  shuttle to the docks: south down the access road, through the
+  city, west to the containers. The timer is generous on a dry
+  road and tight in the rain, which is the point: the grip change
+  is a mission variable, not a backdrop.
+- The Arms Deal. The beacon points at the hangar door (−60, −178).
+  The player meets the buyers, then the grab stage: step to the
+  door and the crate is in hand, three stars go up, and the escape
+  is to the flat — not the marina, not the docks, the flat, because
+  the arc's through-line is Marisol's crew going to ground. The
+  alarm text travels with the event ("The deal went loud — the
+  buyers called it in"), so the HUD never says "bank alarm" for a
+  hangar.
+- The Finale Escape. The beacon points at the runway centre
+  (20, −218) with 90 seconds on the clock, and the mission starts
+  at four stars — interceptors and roadblocks already in the deck.
+  The timed stage is a sprint up the access road and onto the
+  runway itself; the evade stage is losing the heat; the last reach
+  is the marina, where Rook leaves by boat. The story screen's
+  line changes with the ending, because the finale closes the game
+  and the Big Score only closes the first arc.
+
+Failure modes, and what they cost: a timed stage that runs out
+resets to the first stage of that mission (the buyers walk, the
+plane leaves); an evade stage waits until the stars fall to zero,
+however long that takes; a grab stage that is never reached simply
+never trips the alarm, so a cautious player can walk up to the
+hangar, look at the door, and leave without starting anything.
+
+## Numbers that move (R2 systems)
+
+The tuning of the new systems, in one place, so a later edit can
+see what it is moving:
+
+- Day: 480 s of play, 3 game-minutes per real second, starting
+  10:00. Sun 0.18 (night) to 1.60 (noon); hemisphere 0.22 to
+  0.90. Dusk band 17:00–18:30, dawn 05:30–07:00.
+- Rain: 5 windows, first no earlier than 360 s, each 45–90 s,
+  gaps 7–13 minutes. Ramp 10 s in and out. Grip 1 → 0.75. Fog
+  near 140 → 80, far 460 → 280 while raining.
+- Roadblock: at 3+ stars, while driving, 42 m ahead, at most one
+  live, 20 s cooldown after the last one cleared, clears when the
+  heat is off or the player gets 130 m away. Three barriers, each
+  3.6 m of striped board, gaps at both kerbs.
+- Interceptor: chase speed 22 against the patrol car's 19,
+  sent for the extra units at 4+ stars; the first two units stay
+  patrol cars.
+- Heat: every star ever earned adds to the lifetime total; the
+  save stores the current stars and the total; busted/wasted
+  clear the stars, never the total.
+- Rewards: Runway Job $3,000, Arms Deal $6,500, Finale Escape
+  $12,000. The arc pays $21,500 against the first arc's $9,200.
+- Airport: terminal 64 × 16 m, hangar 28 × 20 m, tower cab at
+  26 m, runway 180 × 16 m at z = −218, taxiing plane 6 m/s on a
+  160 m triangle wave. Crowd: 8 peds on the forecourt, 24 on the
+  streets. Traffic: 14 cars, weighted pick, a bus or a limo about
+  as often as a second taxi.

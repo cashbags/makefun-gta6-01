@@ -193,3 +193,19 @@ it is reported below.
   deleted.
 - Tree: game/ 16 files, 2.3 MiB (cap 993 files / 48 MiB);
   screenshots 4 files, each under 256 KiB (cap 4).
+
+## Kit check at the pushed HEAD (cd4c470)
+
+- `node cli/makefun.mjs check --kit . --repo <entry>`, run 16:14
+  WIB 17 Nov on system node v24.22.1: 4 passed, 0 failed,
+  16 skipped, 5 checked at submission. The passes:
+  competition_open (now is between the 15:00 opening and the
+  24 Nov 15:00 deadline), snapshot (29 files, 2,733,646 bytes,
+  inside the intake caps), license_osi (MIT, SPDX), entrypoint
+  (main.ts selects node22). The skipped rows are the transcript
+  gates, which the site runs on its sealed recordings; nothing
+  local can run them. The 5 checked at submission are repo_public,
+  repo_owner, repo_created_after_open, commit_in_repo and
+  duplicate_snapshot — the push that follows this check is what
+  settles the first four, and the re-author is what settles the
+  fifth. No check failed; no check was waived.
