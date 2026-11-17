@@ -178,9 +178,9 @@ lines; the kit check's authored-share figure is the authority, and
 it is reported below.
 
 - Determinism: `main.ts` twice into two directories, `diff -r`:
-  byte-identical after rev1 and after rev2. Dossier hash at rev2
-  (before the final screenshot re-capture): `sha256 22f4d5f0…` —
-  see TESTS.md for the final hash after the re-capture.
+  byte-identical after rev1, after rev2, and on the final committed
+  state. Dossier hash at the final state:
+  `sha256 93ebe82928d63a32e4a19c65dda32bbbe6aeca49f63b4020006b3fc2c9e64447`.
 - Live play: `tools/playtest.mjs` 23/23 PASS, zero page errors;
   `tools/boundary-probe.mjs` 9/9 PASS (north fence now −236, car
   reaches the airport at −182.4, docks/marina/airport/runway all

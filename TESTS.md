@@ -272,9 +272,11 @@ committed repo where a commit is named.
 - Determinism: `MAKEFUN_OUTPUT_DIR=/tmp/gta6-r2-out1 node main.ts`
   and the same into `/tmp/gta6-r2-out2`, then `diff -r`: no
   differences. Ran twice — once after rev1, once after rev2 —
-  byte-identical both times. The dossier hash at rev2 is
-  `sha256 22f4d5f05b52f9b6aa52552f1b0974f766959e673d801dc4441b4411f60b498c`
-  (it was `57795cc9…` at rev1; it moves because the game files and
+  byte-identical both times, and once more on the final committed
+  state (this run). The dossier hash at the final state is
+  `sha256 93ebe82928d63a32e4a19c65dda32bbbe6aeca49f63b4020006b3fc2c9e64447`
+  (it was `57795cc9…` at rev1 and `22f4d5f0…` at rev2 before the
+  screenshot re-capture; it moves because the game files and
   the screenshots changed, never because the docs changed). The
   dossier read-back in `main.ts` proves the new modules were
   copied: it throws if `game/src/airport.js` or
