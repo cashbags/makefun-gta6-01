@@ -3,11 +3,14 @@
 // procedural buildings (boxes with a shared canvas window texture, varied
 // heights and stucco colours), a park, a marina and a waterfront on the south
 // edge, docks on the west edge, and named landmarks the missions point at.
+// A fence and a ring of hills mark the city limit on the BOUNDS rectangle
+// from config.js, so the map ends at something visible instead of bare
+// ground; the water is the boundary on the south side.
 // The module also owns the collision list (axis-aligned boxes) and the road
 // graph the traffic and the pedestrians walk on. Nothing here loads a file:
 // the window texture is drawn on a canvas at build time.
 import * as THREE from 'three';
-import { CITY } from './config.js';
+import { CITY, BOUNDS } from './config.js';
 
 const PALETTE = [0xe8b98a, 0xd98c6a, 0x7fb3a3, 0xe6d3a3, 0xc97b7b, 0x8fa8c8, 0xd9c9b8, 0xa8b89a, 0xe0a458, 0x9a8fb8];
 const ROOF = [0x5a4a3a, 0x6b5a4a, 0x4a4a52, 0x7a6a55];
@@ -90,6 +93,73 @@ export function createCity(rng) {
   sand.rotation.x = -Math.PI / 2;
   sand.position.set(0, 0.06, half + 5);
   group.add(sand);
+
+  // The city limit: a fence on the BOUNDS rectangle plus a ring of hills
+  // behind it, so the edge of the playable map reads as a place instead
+  // of bare concrete running out. The fence is posts every 8 m with two
+  // rails; the hills are big flattened slabs whose heights come from
+  // their index, never from the RNG, so the fence costs the seeded
+  // stream nothing and the city behind it builds exactly as before.
+  // The south side has no fence or hills: the water is the boundary
+  // there, and the marina piers already reach past the sand.
+  {
+    const postMat = new THREE.MeshLambertMaterial({ color: 0x6a6f75 });
+    const railMat = new THREE.MeshLambertMaterial({ color: 0x8a8f96 });
+    const postGeo = new THREE.BoxGeometry(0.28, 2.2, 0.28);
+    const fenceX = BOUNDS.x;
+    const fenceZMin = BOUNDS.zMin;
+    const fenceZMax = BOUNDS.zMax;
+    for (let z = fenceZMin; z <= fenceZMax; z += 8) {
+      for (const x of [-fenceX, fenceX]) {
+        const post = new THREE.Mesh(postGeo, postMat);
+        post.position.set(x, 1.1, z);
+        group.add(post);
+      }
+    }
+    for (let x = -fenceX; x <= fenceX; x += 8) {
+      for (const z of [fenceZMin, fenceZMax]) {
+        const post = new THREE.Mesh(postGeo, postMat);
+        post.position.set(x, 1.1, z);
+        group.add(post);
+      }
+    }
+    const railLenX = fenceX * 2;
+    const railLenZ = fenceZMax - fenceZMin;
+    for (const y of [0.9, 1.7]) {
+      for (const x of [-fenceX, fenceX]) {
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, railLenZ), railMat);
+        rail.position.set(x, y, (fenceZMin + fenceZMax) / 2);
+        group.add(rail);
+      }
+      for (const z of [fenceZMin, fenceZMax]) {
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(railLenX, 0.12, 0.12), railMat);
+        rail.position.set(0, y, z);
+        group.add(rail);
+      }
+    }
+    const hillMat = new THREE.MeshLambertMaterial({ color: 0x6f8a5a });
+    const hillMat2 = new THREE.MeshLambertMaterial({ color: 0x7d9468 });
+    const hillGeo = new THREE.BoxGeometry(1, 1, 1);
+    let hi = 0;
+    for (let x = -fenceX - 10; x <= fenceX + 10; x += 26) {
+      const h = 8 + ((hi * 7) % 11);
+      const hill = new THREE.Mesh(hillGeo, hi % 2 === 0 ? hillMat : hillMat2);
+      hill.scale.set(30, h, 22);
+      hill.position.set(x, h / 2 - 0.5, fenceZMin - 22);
+      group.add(hill);
+      hi += 1;
+    }
+    for (let z = fenceZMin; z <= fenceZMax; z += 30) {
+      for (const side of [-1, 1]) {
+        const h = 9 + ((hi * 5) % 10);
+        const hill = new THREE.Mesh(hillGeo, hi % 2 === 0 ? hillMat2 : hillMat);
+        hill.scale.set(20, h, 34);
+        hill.position.set(side * (fenceX + 24), h / 2 - 0.5, z);
+        group.add(hill);
+        hi += 1;
+      }
+    }
+  }
 
   // Streets: dark strips along every road centre, both directions. A
   // vertical road is a tall plane (width across, length along z); a
@@ -353,11 +423,17 @@ export function resolveCollisions(city, x, z, r) {
       }
     }
   }
-  // The city has edges: keep the player inside the ground, water included.
-  const lim = CITY.half + 60;
-  x = Math.max(-lim, Math.min(lim, x));
-  z = Math.max(-CITY.half - 6, Math.min(CITY.half + 60, z));
-  return { x, z, hit };
+  // The city has edges: keep every mover inside the fenced BOUNDS
+  // rectangle (the docks and the marina sit just inside it by design).
+  // `bounded` tells the caller the fence, not a building, stopped the
+  // move, so the car can thud and the HUD can say why. The old limit
+  // (half + 60) let a car drive 60 m past the last street onto bare
+  // concrete; the fence line is 14 m past the grid at most, and the
+  // fence and hills are drawn on exactly this line.
+  const bx = Math.max(-BOUNDS.x, Math.min(BOUNDS.x, x));
+  const bz = Math.max(BOUNDS.zMin, Math.min(BOUNDS.zMax, z));
+  const bounded = bx !== x || bz !== z;
+  return { x: bx, z: bz, hit, bounded };
 }
 
 // True when (x, z) is on a street rather than inside a block.

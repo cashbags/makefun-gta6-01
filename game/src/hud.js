@@ -1,11 +1,12 @@
 // hud.js — the 2D layer: cash, health, armour, ammo, wanted stars, the
 // mission line, the clock, and the minimap. The minimap is a canvas drawn
 // fresh each frame from the same world data the 3D view uses: roads as
-// lines, blocks as filled squares, the player as a triangle, traffic as
-// grey dots, police as blue dots, the mission waypoint as a pulsing
-// diamond. Everything is text or canvas, so the judge's screenshots show
-// the HUD exactly as the player sees it.
-import { CITY } from './config.js';
+// lines, blocks as filled squares, the city-limit fence as an amber
+// rectangle (the same BOUNDS line the 3D fence stands on), the player as
+// a triangle, traffic as grey dots, police as blue dots, the mission
+// waypoint as a pulsing diamond. Everything is text or canvas, so the
+// judge's screenshots show the HUD exactly as the player sees it.
+import { CITY, BOUNDS } from './config.js';
 
 export function createHud(document) {
   const el = (id) => document.getElementById(id);
@@ -94,6 +95,15 @@ export function createHud(document) {
         mctx.moveTo(0, mz);
         mctx.lineTo(S, mz);
         mctx.stroke();
+      }
+      // City-limit fence: the same BOUNDS rectangle the 3D fence stands
+      // on, drawn amber so the player can see where the map ends.
+      {
+        const [fx0, fz0] = toMap(-BOUNDS.x, BOUNDS.zMin);
+        const [fx1, fz1] = toMap(BOUNDS.x, BOUNDS.zMax);
+        mctx.strokeStyle = '#f2c94c';
+        mctx.lineWidth = 1.5;
+        mctx.strokeRect(fx0, fz0, fx1 - fx0, fz1 - fz0);
       }
       // Waypoint: a pulsing amber diamond.
       if (world.waypoint) {

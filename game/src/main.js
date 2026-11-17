@@ -4,7 +4,9 @@
 // advances in 1/60 s steps, and the renderer paints what is there. The
 // simulation owns the player, the cars, the pedestrians, the police, the
 // wanted level and the missions; the HUD and the minimap read it every
-// frame. ?seed=N fixes the world. ?shot=start|drive|chase|mission stages a
+// frame. The city ends at a visible fence (BOUNDS in config.js): hitting
+// it thuds and toasts instead of letting the player drive onto bare
+// ground. ?seed=N fixes the world. ?shot=start|drive|chase|mission stages a
 // scene instead of running the loop, paints it twice and sets
 // window.__shotReady for a screenshot.
 import * as THREE from 'three';
@@ -149,6 +151,7 @@ const game = {
   carsStolen: 0,
   missionStartApplied: -1,
   shake: 0,
+  lastBoundaryToast: -99, // game.time of the last city-limit warning
 };
 let saveData = null;
 try {
@@ -159,6 +162,17 @@ try {
 
 function announce(message) {
   status.textContent = message;
+}
+
+// The city-limit fence, hit on foot or by car: one toast and one low
+// thud, then silence for four seconds so scraping along the fence does
+// not spam the player. The fence is the end of Solmar — the hills and
+// the water past it are scenery, not somewhere to drive.
+function boundaryHit() {
+  if (game.time - game.lastBoundaryToast < 4) return;
+  game.lastBoundaryToast = game.time;
+  hud.showToast('City limits — the fence is the end of Solmar.', 2.5);
+  audio.thud();
 }
 
 function addWanted(stars, reason) {
@@ -613,6 +627,7 @@ function step(dt) {
   // Player.
   if (player.inCar && player.car) {
     stepPlayerCar(player.car, input, dt, city);
+    if (player.car.bounded) boundaryHit();
     player.x = player.car.x;
     player.z = player.car.z;
     player.angle = player.car.angle;
@@ -658,6 +673,7 @@ function step(dt) {
       const nx = player.x + mx * speed * dt;
       const nz = player.z + mz * speed * dt;
       const fixed = resolveCollisions(city, nx, nz, PLAYER.radius);
+      if (fixed.bounded) boundaryHit();
       player.x = fixed.x;
       player.z = fixed.z;
       player.speed = speed;

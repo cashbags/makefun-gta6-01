@@ -176,7 +176,10 @@ export function stepTraffic(cars, city, rng, dt, others) {
     const step = car.speed * dt;
     if (car.road === 'x') car.x += step * car.dir;
     else car.z += step * car.dir;
-    // Out of the city: wrap to the far side on the same road.
+    // Out of the city: wrap to the far side on the same road. The wrap
+    // line (half + 4) sits well inside the BOUNDS fence (half + 14), so
+    // traffic never touches the fence: it turns around on its own road
+    // instead of driving out of town.
     const half = CITY.half;
     if (car.road === 'x' && (car.x > half + 4 || car.x < -half - 4)) car.x = -car.dir * (half + 2);
     if (car.road === 'z' && (car.z > half + 4 || car.z < -half - 4)) car.z = -car.dir * (half + 2);
@@ -209,6 +212,14 @@ export function stepPlayerCar(car, input, dt, city) {
   const fixed = resolveCollisions(city, nx, nz, 1.6);
   if (fixed.hit && Math.abs(car.speed) > 4) {
     car.speed *= 0.4; // a thud, not a full stop: arcade, not a sim
+  }
+  // Hitting the city-limit fence is the same kind of thud as a building,
+  // and the car remembers it so main.js can tell the player why the car
+  // stopped. The fence line is 14 m past the last street at most, so a
+  // car at speed reaches it only by driving off the grid on purpose.
+  car.bounded = fixed.bounded;
+  if (fixed.bounded && Math.abs(car.speed) > 4) {
+    car.speed *= 0.4;
   }
   car.x = fixed.x;
   car.z = fixed.z;

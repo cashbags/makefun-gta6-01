@@ -1,9 +1,10 @@
 // audio.js — every sound in SOLMAR is synthesised with WebAudio: no audio
 // files, no network, nothing to load. Engine hum follows the car's speed,
 // the siren wails while the police are after the player, gunshots are
-// filtered noise bursts, and a small sequenced bassline keeps the city
-// humming. Audio starts on the first user gesture (the title screen click);
-// every call is guarded so a headless run without audio never throws.
+// filtered noise bursts, a low thud marks the city-limit fence, and a small
+// sequenced bassline keeps the city humming. Audio starts on the first user
+// gesture (the title screen click); every call is guarded so a headless run
+// without audio never throws.
 export function createAudio() {
   let ctx = null;
   let master = null;
@@ -162,6 +163,12 @@ export function createAudio() {
     },
     crash() {
       noiseBurst(0.3, 300, 0.6);
+    },
+    // A fence thud: shorter and lower than a crash, for the city-limit
+    // fence. Same filtered-noise burst, half the length and a lower
+    // filter, so the player hears "edge of the map" instead of "wreck".
+    thud() {
+      noiseBurst(0.15, 180, 0.45);
     },
     pickup() {
       blip(660, 0.09, 0.2);

@@ -16,6 +16,21 @@ export const CITY = {
     return this.block + this.road;
   },
 };
+// The playable edge of Solmar Bay, in world metres. The street grid ends
+// at CITY.half, but two mission places sit just outside it — the docks 8 m
+// past the west edge, the marina 2 m past the south edge — so the fence
+// line is drawn a little further out: 14 m past the grid on the land
+// sides, 6 m past it to the north, 10 m past it toward the water. Every
+// mover (player on foot, player car, traffic, cops, pedestrians) is
+// clamped to this rectangle by resolveCollisions in city.js, and city.js
+// draws the fence and the hills on exactly this line, so the edge of the
+// map is something the player can see, not an invisible wall in the
+// middle of bare ground.
+export const BOUNDS = {
+  x: CITY.half + 14,
+  zMin: -(CITY.half + 6),
+  zMax: CITY.half + 10,
+};
 export const PLAYER = {
   walkSpeed: 5.2,
   runSpeed: 8.5,
