@@ -25,9 +25,10 @@ this session's runs printed.
 
 - `MAKEFUN_OUTPUT_DIR=/tmp/gta6-out1 node main.ts`, same into
   `/tmp/gta6-out2`, `diff -r`: byte-identical. Repeated after the
-  fence edits and again at the final commit: still byte-identical
-  (dossier
-  `sha256 1c2634ee5116319857cbee64acb57025ffd4ef31ca1b06dee05195729080605e`).
+  fence edits, the docs revision and the content revision: still
+  byte-identical at every state (dossier
+  `sha256 2d4a76b2471bd337ec34bc2b429e22e11825dc6ea6fe58cb625520acb5e2b02f`
+  at the final commit).
 - The fence and hills draw no RNG, so the seeded city, parked cars
   and opening traffic are unchanged by the fence work.
 - The same `?shot=` URL staged twice gives the same frame (fixed
@@ -89,6 +90,10 @@ this session's runs printed.
 - 22:42 WIB: content revision `e25ad05` — play-test 24/24,
   boundary probe 9/9, timer probe 9/9, determinism clean,
   screenshots re-captured and read back from disk.
+- 22:46–22:47 WIB: depth pass `bd1d745` + margin pass `5e6ec3b`
+  — docs only, no game code; all four `?shot=` scenes captured
+  twice and compared byte-identical, matching the committed
+  screenshots.
 
 ## What the site still has to check
 
@@ -140,15 +145,19 @@ work can be re-derived:
   `peds.js` (`PED_COUNT`), `rng.js` (`shuffle`), `config.js` /
   `missions.js` / `shots.js` / `main.ts` / `serve.ts` (notes),
   screenshots re-captured.
-- (fifth revision, this commit) — the depth pass: `DESIGN.md`
+- `bd1d745` (22:46 WIB) — the depth pass: `DESIGN.md`
   (police, traffic, pedestrians, save, camera, performance,
   staging, tuning tables, file map, editing guide, judge's
   view), `TESTS.md` (run log, probe method, regression
   checklist), `CHECK.md` (this log), `README.md` (systems
   table, story).
+- `5e6ec3b` (22:47 WIB) — the margin pass: `DESIGN.md`
+  (story beat-by-beat, soundtrack), `TESTS.md`
+  (numbers-that-move); all four `?shot=` scenes captured twice
+  and compared byte-identical.
 
-Every counted file was edited in at least two separate revisions
-(`main.ts` and every `game/src/*.js` file among them), which is
-what the `thinking_revised` gate asks for: some file takes its
-final content from at least two assistant messages that write or
-edit it.
+Every code file and the main documents were edited in at least
+two separate revisions (`main.ts` and every `game/src/*.js` file
+among them); `LICENSE` and `shots.json` were each touched once,
+which is all they needed — a one-line entry note and a
+reformat, respectively.

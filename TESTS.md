@@ -14,7 +14,12 @@ figure.
   no differences. Ran twice in this session — once on the original
   commit and once after the fence work — byte-identical both times.
   The dossier hash at the final commit is
-  `sha256 1c2634ee5116319857cbee64acb57025ffd4ef31ca1b06dee05195729080605e`.
+  `sha256 2d4a76b2471bd337ec34bc2b429e22e11825dc6ea6fe58cb625520acb5e2b02f`.
+  (It moved twice along the way — `4a3b2aa1…` at the fence
+  revision, `1c2634ee…` at the docs revision — because the game
+  files and the screenshots changed; root-doc edits never move
+  it, because the dossier is built from game/ and screenshots/
+  only.)
 - The game code never reorders the seeded stream: the fence and hills
   in `city.js` use fixed positions and index-derived heights and draw
   no numbers from the RNG, so the city, the parked cars and the opening
