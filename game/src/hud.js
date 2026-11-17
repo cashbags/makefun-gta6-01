@@ -31,6 +31,7 @@ export function createHud(document) {
   const toast = el('hud-toast');
   const speed = el('hud-speed');
   const timer = el('hud-timer');
+  const taxiLine = el('hud-taxi');
   const minimap = el('minimap');
   const mctx = minimap.getContext('2d');
   let toastTimer = 0;
@@ -78,6 +79,13 @@ export function createHud(document) {
       if (weather) weather.textContent = state.weather ?? '';
       if (heat) heat.textContent = `HEAT ${state.heat ?? 0}★ TOTAL`;
       if (arc) arc.textContent = state.arc ?? '';
+      // The cab-work line lives in the vitals block: the standing
+      // record (rating, fares, earnings) when no shift is live, the
+      // pickup and the quoted fare while one waits, the destination
+      // and the time left while riding. main.js formats it (taxi.js),
+      // the HUD only shows it — and the guard is there so a harness
+      // that stubs the HUD with fewer elements still runs.
+      if (taxiLine) taxiLine.textContent = state.taxi ?? '';
       speed.textContent = state.inCar ? `${Math.round(Math.abs(state.carSpeed) * 3.6)} km/h` : '';
       // Timed missions get a countdown of their own, big and red under
       // the objective line, because the objective text alone (a small
@@ -174,6 +182,22 @@ export function createHud(document) {
         mctx.lineTo(wx + pulse, wz);
         mctx.lineTo(wx, wz + pulse);
         mctx.lineTo(wx - pulse, wz);
+        mctx.closePath();
+        mctx.fill();
+      }
+      // The taxi fare, when one is live: a green diamond at the
+      // destination while riding, a yellow one at the pickup while
+      // waiting — the same diamond language as the mission waypoint,
+      // in the fare's colours, so the player reads it at a glance and
+      // never confuses a fare with a job.
+      if (world.taxiDest) {
+        const [tx, tz] = toMap(world.taxiDest.x, world.taxiDest.z);
+        mctx.fillStyle = world.taxiDest.boarding ? '#f2c94c' : '#7ee787';
+        mctx.beginPath();
+        mctx.moveTo(tx, tz - 5);
+        mctx.lineTo(tx + 5, tz);
+        mctx.lineTo(tx, tz + 5);
+        mctx.lineTo(tx - 5, tz);
         mctx.closePath();
         mctx.fill();
       }

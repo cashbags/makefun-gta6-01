@@ -266,3 +266,29 @@ export function storyArc(m) {
     total,
   };
 }
+
+// Wanted-level commentary: one line per star, for the toast that
+// announces the heat. The lines escalate with the response — a plate
+// read at one star, roadblocks at three, interceptors at four, the
+// whole city at five — so the player hears the PD's answer change
+// before they see the extra cars. Pure: the same stars always give
+// the same line.
+export function heatCommentary(stars) {
+  return [
+    '',
+    'The PD has your plate.',
+    'Patrol cars are rolling.',
+    'Roadblocks are going up ahead.',
+    'Interceptors are on the road.',
+    'The whole city is hunting you.',
+  ][stars] ?? '';
+}
+
+// The story screen's side-job line: what the cab work added up to, in
+// one sentence next to the kills and the cars stolen. A driver who
+// never took a fare reads "no fares yet" instead of a zero — the line
+// is a record, not a scolding.
+export function cabWorkLine(fares, earned, rating) {
+  if (fares <= 0) return 'Cab work: no fares yet — the yellow cabs are still waiting.';
+  return `Cab work: ${fares} fare${fares === 1 ? '' : 's'} · $${earned.toLocaleString('en-US')} earned · rating ${rating.toFixed(1)}★.`;
+}

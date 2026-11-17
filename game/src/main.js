@@ -11,14 +11,15 @@
 // running the loop, paints it twice and sets window.__shotReady for a
 // screenshot.
 import * as THREE from 'three';
-import { STEP, CITY, PLAYER, CAR, WANTED, COMBAT, MISSIONS, SAVE_KEY, ROADBLOCK } from './config.js';
+import { STEP, CITY, PLAYER, CAR, WANTED, COMBAT, MISSIONS, SAVE_KEY, ROADBLOCK, TAXI } from './config.js';
 import { createRandom } from './rng.js';
 import { createCity, resolveCollisions } from './city.js';
-import { createCar, createTraffic, stepTraffic, stepPlayerCar, placeCar, createRoadblock, clearRoadblock, chaseSpeed } from './vehicles.js';
-import { createPed, createCop, createAirportCrowd, placePerson, stepPeds, stepCops, nearestPed, PED_COUNT } from './peds.js';
-import { createMissions, currentObjective, currentStage, currentWaypoint, stepMissions, onMissionStart, storyArc } from './missions.js';
+import { createCar, createTraffic, stepTraffic, stepPlayerCar, placeCar, createRoadblock, clearRoadblock, chaseSpeed, isTaxiCar } from './vehicles.js';
+import { createPed, createCop, createAirportCrowd, placePerson, stepPeds, stepCops, nearestPed, tagPassenger, PED_COUNT } from './peds.js';
+import { createMissions, currentObjective, currentStage, currentWaypoint, stepMissions, onMissionStart, storyArc, heatCommentary, cabWorkLine } from './missions.js';
 import { createWeather, stepWeather, applyWeather, createRainPoints, stepRain, weatherLabel } from './weather.js';
 import { createTaxiPlane, stepTaxiPlane, AIRPORT } from './airport.js';
+import { createTaxiJob, createTaxiMarkers, taxiHudLine, stopName } from './taxi.js';
 import { createAudio } from './audio.js';
 import { createHud } from './hud.js';
 import { stageShot } from './shots.js';
@@ -60,6 +61,16 @@ scene.add(city.group);
 const weather = createWeather(rng.fork());
 const rainPoints = createRainPoints(scene);
 const taxiPlane = createTaxiPlane(scene);
+
+// Cab work: the taxi job and its two marker meshes (pickup yellow,
+// destination green). The job draws from its own stream seeded from
+// the game seed, so offering a fare costs the shared stream nothing
+// and the world above builds exactly as it did before cab work
+// existed. taxiPassenger is the waiting fare's ped, standing at the
+// pickup kerb until they board — null when no fare is waiting.
+const taxi = createTaxiJob(seed);
+const taxiMarkers = createTaxiMarkers(scene);
+let taxiPassenger = null;
 
 const traffic = createTraffic(city, rng.fork(), 14, scene);
 const parked = [];
@@ -177,6 +188,10 @@ const game = {
   missionStartApplied: -1,
   shake: 0,
   lastBoundaryToast: -99, // game.time of the last city-limit warning
+  // Cab work, this save: fares completed and dollars earned. The
+  // rating itself lives on the job (taxi.rating) and is saved with it.
+  taxiFares: 0,
+  taxiEarned: 0,
   // The live roadblock, if the PD has one up, and when the last one
   // cleared (the cooldown lives here, not in the barrier builder).
   roadblock: null,
@@ -210,7 +225,9 @@ function addWanted(stars, reason) {
   game.heatTotal += stars;
   game.lastCrime = game.time;
   game.quietSince = game.time;
-  hud.showToast(`WANTED ${'★'.repeat(game.wanted)} — ${reason}`, 3);
+  // The commentary travels with the stars: the toast says what the PD
+  // is doing about the heat, not just how many stars it is.
+  hud.showToast(`WANTED ${'★'.repeat(game.wanted)} — ${reason}. ${heatCommentary(game.wanted)}`, 3);
 }
 
 function saveGame() {
@@ -224,6 +241,11 @@ function saveGame() {
       // heat away. A bust or a waste still clears the stars (the fine
       // is the price); the total never resets.
       wanted: game.wanted, heatTotal: game.heatTotal,
+      // Cab work persists with the save: the rating, the fares and the
+      // earnings come back on load, so a driver's record survives a
+      // reload. A live shift does not — the fare is gone when the game
+      // closes, and the job restarts at 'off'.
+      taxiRating: taxi.rating, taxiFares: game.taxiFares, taxiEarned: game.taxiEarned,
     }));
     hud.showToast('Game saved.', 2);
   } catch { /* storage can be off; the game still plays */ }
@@ -247,6 +269,14 @@ function loadSave(data) {
   // remembered them — because it did.
   game.wanted = Math.min(WANTED.maxStars, data.wanted ?? 0);
   game.heatTotal = data.heatTotal ?? 0;
+  // Restore the cab-work record: the rating and the earnings come back
+  // as they were, and the job itself starts at 'off' — a fare waiting
+  // when the game closed is gone, the record is not.
+  taxi.rating = Math.min(5, Math.max(1, data.taxiRating ?? TAXI.ratingStart));
+  taxi.fares = data.taxiFares ?? 0;
+  taxi.earned = data.taxiEarned ?? 0;
+  game.taxiFares = taxi.fares;
+  game.taxiEarned = taxi.earned;
   if (game.wanted > 0) {
     game.lastCrime = game.time;
     hud.showToast(`The heat remembers you — ${'★'.repeat(game.wanted)} still on you.`, 4);
@@ -424,6 +454,10 @@ function seatPlayerInCar(car, silent) {
     game.carsStolen += 1;
     audio.pickup();
     hud.showToast(car.kind === 'police' ? 'You stole a police car. Bold.' : `In the ${car.kind}. Drive.`, 2);
+    // A taxi is a job, not just a car: entering one offers a fare.
+    // The steal still costs its star — the fare does not know the cab
+    // is stolen, and the PD does not care that you are working.
+    if (isTaxiCar(car)) startTaxiShift();
   }
 }
 
@@ -440,12 +474,89 @@ function tryEnterExitCar() {
     car.speed = 0;
     car.parked = true;
     if (!parked.includes(car)) parked.push(car);
+    // Leaving the cab abandons the fare: the passenger walks away and
+    // the rating pays for it, whether they were still waiting at the
+    // kerb or already riding.
+    if (isTaxiCar(car) && taxi.status !== 'off') cancelTaxiShift('You left the cab — the fare walked away.');
     hud.showToast('Out of the car.', 1.5);
     return;
   }
   const car = nearestCar(3.4);
   if (!car) return;
   seatPlayerInCar(car, false);
+}
+
+// --- Taxi side-job ---
+// The waiting fare's ped leaves the street when they board, when the
+// fare is cancelled, or when the driver is busted or wasted: the ped
+// array is the street, and a passenger who is gone is gone.
+function removeTaxiPassenger() {
+  if (!taxiPassenger) return;
+  scene.remove(taxiPassenger.mesh);
+  const i = peds.indexOf(taxiPassenger);
+  if (i >= 0) peds.splice(i, 1);
+  taxiPassenger = null;
+}
+
+// Offer a fare when the player enters a taxi: pick two stops, put a
+// passenger on the kerb at the pickup, and mark it with the yellow
+// beacon. The quoted fare uses the rain at the offer, so the surge is
+// fixed when the passenger is quoted, not when they get out.
+function startTaxiShift() {
+  const fare = taxi.offerFare(city.markers, weather.rain);
+  if (!fare) return;
+  taxiMarkers.showPickup(fare.pickup.x, fare.pickup.z);
+  taxiPassenger = tagPassenger(createPed(rng.fork(), fare.pickup.x + 2, fare.pickup.z + 2));
+  placePerson(taxiPassenger, scene);
+  peds.push(taxiPassenger);
+  audio.fare();
+  hud.showToast(`Cab work: pick up the fare at ${fare.pickupName} — $${fare.fare} to ${fare.destName} (${fare.dist} m).`, 5);
+}
+
+// Abandon a live fare: the rating pays, the markers go dark, the
+// passenger leaves the street. Called when the driver exits the cab,
+// gets busted, or gets wasted mid-fare.
+function cancelTaxiShift(reason) {
+  taxi.fail();
+  taxiMarkers.hideAll();
+  removeTaxiPassenger();
+  audio.fail();
+  hud.showToast(`${reason} Rating ${taxi.rating.toFixed(1)}★.`, 4);
+}
+
+// One step of the fare: boarding when the taxi reaches the pickup,
+// payout on arrival at the destination, failure when the timer runs
+// out. The timer counts down on step dt, so a paused game never loses
+// a fare to the wall clock.
+function stepTaxi(dt) {
+  taxiMarkers.step(game.time, dt);
+  if (taxi.status === 'waiting') {
+    if (player.inCar && player.car && isTaxiCar(player.car)
+      && Math.hypot(player.x - taxi.pickup.x, player.z - taxi.pickup.z) < TAXI.pickupRadius) {
+      taxi.board();
+      removeTaxiPassenger();
+      taxiMarkers.showDest(taxi.dest.x, taxi.dest.z);
+      audio.fare();
+      hud.showToast(`Fare aboard — to ${stopName(taxi.destKey)} in ${Math.ceil(taxi.timer)}s. Drive smooth.`, 4);
+    }
+  } else if (taxi.status === 'riding') {
+    taxi.timer -= dt;
+    if (Math.hypot(player.x - taxi.dest.x, player.z - taxi.dest.z) < TAXI.dropRadius) {
+      const result = taxi.complete();
+      game.cash += result.payout;
+      game.taxiFares = taxi.fares;
+      game.taxiEarned = taxi.earned;
+      taxiMarkers.hideAll();
+      audio.fare();
+      hud.showToast(`Fare paid: $${result.payout} ($${result.fare} + $${result.tip} tip) — rating ${result.rating.toFixed(1)}★.`, 4);
+      saveGame();
+    } else if (taxi.timer <= 0) {
+      taxi.fail();
+      taxiMarkers.hideAll();
+      audio.fail();
+      hud.showToast(`Too slow — the fare got out at the lights. Rating ${taxi.rating.toFixed(1)}★.`, 4);
+    }
+  }
 }
 
 // --- Police ---
@@ -555,6 +666,9 @@ function busted() {
   game.cash -= fine;
   game.wanted = 0;
   clearRoadblockNow();
+  // A bust ends the shift too: the fare is gone, the cab is wherever
+  // the PD left it, and the rating pays for the abandoned ride.
+  if (taxi.status !== 'off') cancelTaxiShift('Busted mid-fare — the passenger walked away.');
   for (const cop of footCops) scene.remove(cop.mesh);
   footCops.length = 0;
   for (const car of policeCars) scene.remove(car.mesh);
@@ -582,6 +696,8 @@ function wasted() {
   game.cash -= lost;
   game.wanted = 0;
   clearRoadblockNow();
+  // A waste ends the shift the same way a bust does.
+  if (taxi.status !== 'off') cancelTaxiShift('Wasted mid-fare — the passenger walked away.');
   for (const cop of footCops) scene.remove(cop.mesh);
   footCops.length = 0;
   for (const car of policeCars) scene.remove(car.mesh);
@@ -614,7 +730,7 @@ function showOverlay(name, text) {
   for (const [key, el] of Object.entries(overlays)) el.classList.toggle('hidden', key !== name);
   if (name === 'story') {
     document.getElementById('story-stats').textContent =
-      `Cash $${game.cash.toLocaleString('en-US')} · ${game.kills} takedowns · ${game.carsStolen} cars stolen · ${formatTime(game.playSeconds)} in Solmar Bay.`;
+      `Cash $${game.cash.toLocaleString('en-US')} · ${game.kills} takedowns · ${game.carsStolen} cars stolen · ${formatTime(game.playSeconds)} in Solmar Bay. ${cabWorkLine(taxi.fares, taxi.earned, taxi.rating)}`;
   }
   if (name === 'title') {
     document.getElementById('continue-btn').classList.toggle('hidden', !saveData);
@@ -770,6 +886,9 @@ function step(dt) {
         p.mesh.position.y = 0.3;
         player.car.speed *= 0.7;
         addWanted(1, 'A pedestrian is down');
+        // A fare in the back sees that: every run-over while riding
+        // is a crash against the tip and the rating.
+        if (taxi.status === 'riding') taxi.crashes += 1;
         audio.crash();
         for (const q of peds) if (!q.dead && Math.hypot(q.x - p.x, q.z - p.z) < 14) q.flee = 3;
       }
@@ -782,6 +901,8 @@ function step(dt) {
           game.shake = 0.3;
           player.car.speed *= 0.6;
           car.speed = 0;
+          // A bump at speed is a crash for the fare too.
+          if (taxi.status === 'riding') taxi.crashes += 1;
         }
       }
     }
@@ -987,6 +1108,11 @@ function step(dt) {
     }
   }
 
+  // Taxi side-job: pick up, drive, get paid. It runs after the
+  // missions so a fare never steals the mission's events, and it only
+  // advances while playing — a paused game never loses a fare.
+  if (game.screen === 'playing') stepTaxi(dt);
+
   // Beacon + HUD.
   const wp = currentWaypoint(missions);
   if (wp && game.screen === 'playing') {
@@ -1040,11 +1166,18 @@ function step(dt) {
     weather: weatherLabel(weather),
     heat: game.heatTotal,
     arc: storyArc(missions).text,
+    // The cab-work line: rating and earnings when off, pickup and
+    // fare while waiting, destination and time left while riding.
+    taxi: taxiHudLine(taxi),
   }, dt);
   hud.drawMinimap({
     city, traffic, policeCars, footCops,
     player: { x: player.x, z: player.z, heading: player.heading },
     waypoint: wp, time: game.time,
+    // The fare on the minimap: the pickup while waiting (boarding),
+    // the destination while riding. Null when no shift is live.
+    taxiDest: taxi.status === 'waiting' ? { ...taxi.pickup, boarding: true }
+      : taxi.status === 'riding' ? { ...taxi.dest, boarding: false } : null,
   });
 }
 
@@ -1088,7 +1221,7 @@ function frame(now) {
 // Debug handle for play-testing (read-only state for the test harness).
 window.__solmar = {
   game, player, missions, city, parked, traffic, peds, footCops, policeCars,
-  weather, taxiPlane, airport: AIRPORT,
+  weather, taxiPlane, airport: AIRPORT, taxi,
   // The live roadblock, if one is up: the play-test reads its position
   // and colliders to prove it stands and clears.
   get roadblock() { return game.roadblock; },

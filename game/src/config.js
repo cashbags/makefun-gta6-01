@@ -131,6 +131,36 @@ export const COMBAT = {
   copHealth: 60,
   pedHealth: 30,
 };
+// Cab work (taxi.js): the side-job economy. A fare pays a base fee plus
+// a per-metre rate on the straight-line distance between its two stops,
+// so the airport run (about 200 m from the docks) pays roughly six
+// times a hop across the plaza. Rain pays a surge — wet nights pay
+// more because fewer cabs are out — and a driver under three stars
+// earns 80% while the dispatcher trusts them less. The ride timer is
+// the drive at cruise speed (11 m/s, a taxi's unhurried pace) plus 25 s
+// of slack: a direct route with one wrong turn still makes it, a
+// sightseeing tour does not. The tip is up to half the fare again,
+// scaled by the time left when the passenger gets out, minus $5 per
+// crash on the way — smooth and fast pays, rough and late does not.
+// The rating starts at 5.0, climbs 0.2 on a clean ride, falls 0.3 per
+// crash, and falls 0.5 on a failed or abandoned fare, clamped to 1..5.
+export const TAXI = {
+  baseFare: 12,
+  perMetre: 0.35,
+  rainSurge: 1.25,
+  lowRatingCut: 0.8,
+  lowRatingBelow: 3,
+  pickupRadius: 6,
+  dropRadius: 6,
+  cruiseSpeed: 11,
+  timerSlackSeconds: 25,
+  tipMaxFraction: 0.5,
+  crashTipPenalty: 5,
+  ratingStart: 5,
+  ratingStepUp: 0.2,
+  ratingStepDown: 0.3,
+  ratingFailPenalty: 0.5,
+};
 export const MISSIONS = [
   { id: 'fixer', name: 'The Fixer', reward: 500 },
   { id: 'wheels', name: 'Hot Wheels', reward: 1200 },

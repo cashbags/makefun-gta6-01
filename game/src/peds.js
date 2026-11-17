@@ -164,9 +164,28 @@ export function placePerson(p, scene) {
 // axis (not just flip direction on its current axis), so a gunshot in
 // front of a ped sends them away from the shooter, and a car bearing
 // down on the sidewalk sends them off it.
+// A taxi fare's passenger: the ped stands at the pickup kerb and waits
+// instead of walking. tagPassenger marks them; stepPeds keeps a marked
+// ped standing (position pinned, arms still) until main.js removes them
+// when they board. A waiting passenger never flees, never jaywalks and
+// never respawns elsewhere — they are the one person on the street with
+// somewhere to be, and it is the taxi.
+export function tagPassenger(ped) {
+  ped.waiting = true;
+  return ped;
+}
+
 export function stepPeds(peds, city, rng, dt, scare) {
   for (const p of peds) {
     if (p.dead) continue;
+    // A waiting fare stands at the kerb: no walking, no turning, no
+    // fleeing from a nearby gunshot — the fare is why they are there.
+    // Their mesh is pinned to their spot and the loop moves on, so a
+    // passenger costs the step nothing until they board.
+    if (p.waiting) {
+      p.mesh.position.set(p.x, 0, p.z);
+      continue;
+    }
     if (scare) {
       p.flee = 3;
       // Run away from the scare on the axis it is closest on: the ped

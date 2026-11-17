@@ -4,7 +4,7 @@
 [![rank](https://make.fun/badge/gta6-01/cashbags/makefun-gta6-01/rank.svg)](https://make.fun/bounty/gta6-01/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=gta6-01)
 [![reward](https://make.fun/badge/gta6-01/cashbags/makefun-gta6-01/reward.svg)](https://make.fun/bounty/gta6-01?utm_source=github&utm_medium=readme&utm_campaign=gta6-01)
 
-SOLMAR — a complete open-world crime game in the spirit of GTA 6, built from scratch in three.js. A living coastal city, Solmar Bay: drive its streets and steal its cars, dodge traffic and pedestrians, outrun a five-star wanted level and the Solmar PD, fight with a pistol, and run eight story missions for the fixer Marisol Vega — from meeting at the docks to the Big Score at Solmar Trust Bank, then three more at Solmar International airport, where the money leaves town and so, in the end, do you. Third-person on foot and behind the wheel, a HUD with health, armour, cash, wanted stars and a live minimap, a day/night cycle with seeded rain that changes how the cars handle, police roadblocks at three stars, a start screen and a save that persists in the browser (including the heat), and fully synthesised sound (engine, sirens, gunshots, rain, thunder, jet rumble, a bassline) with no audio files and no network request anywhere.
+SOLMAR — a complete open-world crime game in the spirit of GTA 6, built from scratch in three.js. A living coastal city, Solmar Bay: drive its streets and steal its cars, dodge traffic and pedestrians, outrun a five-star wanted level and the Solmar PD, fight with a pistol, and run eight story missions for the fixer Marisol Vega — from meeting at the docks to the Big Score at Solmar Trust Bank, then three more at Solmar International airport, where the money leaves town and so, in the end, do you. Between jobs, drive a yellow taxi for fares: pick up passengers at the kerb, run them across town against the clock, and build a driver rating that pays. Third-person on foot and behind the wheel, a HUD with health, armour, cash, wanted stars and a live minimap, a day/night cycle with seeded rain that changes how the cars handle, police roadblocks at three stars, a start screen and a save that persists in the browser (including the heat), and fully synthesised sound (engine, sirens, gunshots, rain, thunder, jet rumble, a bassline) with no audio files and no network request anywhere.
 
 ## Run it
 
@@ -37,6 +37,7 @@ times.
 | --- | --- |
 | Driving | Arcade model: accelerate, brake/reverse, steering that bites harder at low speed; 11 car kinds (sedan, taxi, van, sport, muscle, truck, police, bus, shuttle, interceptor, limo) with their own speed and handling; rain cuts grip to 0.75 |
 | Stealing | E near any parked or traffic car takes it (+1 wanted star) |
+| Cab work | Get in a yellow taxi: a fare is offered between two known stops, a passenger waits at the kerb, drive them there before the timer runs out — $12 base + $0.35/m, rain surge 1.25×, tip up to half the fare, driver rating 1–5★ that persists in the save |
 | Wanted | 0–5 stars, decay after 25 quiet seconds, foot cops + patrol cars spawn to match, interceptors at 4 stars, roadblocks across the road at 3 stars while driving, busted/wasted respawn at the hospital with a $300 fine; the wanted level and the lifetime heat total persist across save/load |
 | Missions | Eight jobs for the fixer Marisol Vega — walk, steal, timed delivery, evade, grab-and-escape, then the Airport Arc: the Runway Job, the Arms Deal, the Finale Escape — $500 to $12,000 a job |
 | Combat | Hitscan pistol, 12-round magazine, 1.1 s reload, 34 damage; armour absorbs 60%; health/ammo pickups respawn every 30 s |
@@ -76,7 +77,7 @@ grip, night) all passing with zero page errors. See `TESTS.md` and
 
 ## How it is built
 
-- `game/` — the playable game as static files: `index.html`, `src/*.js` (city, airport, weather, traffic, pedestrians, police, missions, combat, HUD, audio, screenshots), three.js vendored as `game/vendor/three.module.min.js`.
+- `game/` — the playable game as static files: `index.html`, `src/*.js` (city, airport, weather, taxi, traffic, pedestrians, police, missions, combat, HUD, audio, screenshots), three.js vendored as `game/vendor/three.module.min.js`.
 - `main.ts` — the entry program (Node 22): copies `game/` and `screenshots/` to `/output` and writes `dossier.json` with the vendored make.fun library.
 - `screenshots/` — 4 real browser captures of the game's own code (start, driving, police chase, airport).
 - `shots.json` — the `?shot=` scenes the captures come from; every scene is a deterministic staged play of the real rules from a fixed seed.

@@ -309,6 +309,15 @@ export function chaseSpeed(kind) {
   return (KINDS[kind] ?? KINDS.sedan).speed;
 }
 
+// Cab work starts here: a car counts as a taxi for the side job when
+// its kind is 'taxi' — a parked yellow cab or one pulled out of
+// traffic, both carry the roof sign buildCarMesh adds. No other kind
+// can start a shift, so stealing a sedan never offers a fare by
+// accident, and a police car never does either.
+export function isTaxiCar(car) {
+  return car != null && car.kind === 'taxi';
+}
+
 // --- Police roadblocks ---
 // A roadblock is three striped barriers across a road plus the two
 // patrol cars that stand behind them, built by main.js when the heat

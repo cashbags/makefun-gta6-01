@@ -19,7 +19,7 @@
 // passes that grip into stepPlayerCar, so a rainy chase really does
 // slide wider than a dry one.
 import * as THREE from 'three';
-import { WEATHER } from './config.js';
+import { WEATHER, TAXI } from './config.js';
 
 // Interpolate two hex colours by t in [0, 1]. Written out by hand
 // instead of THREE.Color.lerp because the sky blends three stops
@@ -240,4 +240,14 @@ export function clockString(w) {
 // "19:05 · Dusk · Rain" while a window is open.
 export function weatherLabel(w) {
   return `${clockString(w)} · ${w.phase}${w.rain > 0.15 ? ' · Rain' : ''}`;
+}
+
+// The cab-work rain surge: a fare quoted while the rain is properly
+// falling (past half strength, not a drizzle at the edge of a window)
+// pays TAXI.rainSurge — 1.25× — because wet nights put fewer cabs on
+// the road. The threshold is the same 0.5 the thunder uses, so the
+// surge and the thunder always agree about when it is really raining.
+// Pure: the same rain level always gives the same multiplier.
+export function rainFareMultiplier(rain) {
+  return rain > 0.5 ? TAXI.rainSurge : 1;
 }

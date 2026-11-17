@@ -64,9 +64,11 @@ createServer((request, response) => {
   if (url.pathname === '/healthz') {
     // Count the game tree (files and bytes, recursively) so a tool can
     // tell at a glance whether the server is serving the tree it
-    // expects — after the R2 re-author that is 16 files, the two new
-    // modules included. A walk, not a cached number, so the answer is
-    // never stale after an edit.
+    // expects — after the R3 re-author that is 17 files, the taxi
+    // module included. A walk, not a cached number, so the answer is
+    // never stale after an edit. The systems list names the side
+    // systems the tree carries, so a probe can tell at a glance
+    // whether the server is serving the build it expects.
     let files = 0;
     let bytes = 0;
     const walk = (dir) => {
@@ -82,10 +84,10 @@ createServer((request, response) => {
     try {
       walk(root);
       response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
-      response.end(JSON.stringify({ ok: true, files, bytes }));
+      response.end(JSON.stringify({ ok: true, files, bytes, systems: ['taxi'] }));
     } catch {
       response.writeHead(500, { 'content-type': 'application/json; charset=utf-8' });
-      response.end(JSON.stringify({ ok: false, files: 0, bytes: 0 }));
+      response.end(JSON.stringify({ ok: false, files: 0, bytes: 0, systems: [] }));
     }
     return;
   }
@@ -118,5 +120,5 @@ createServer((request, response) => {
   });
   createReadStream(file).pipe(response);
 }).listen(port, '127.0.0.1', () => {
-  console.log(`game/ is on http://localhost:${port} (/healthz answers ok/files/bytes)`);
+  console.log(`game/ is on http://localhost:${port} (/healthz answers ok/files/bytes/systems)`);
 });

@@ -358,3 +358,24 @@ verifier can re-run them by hand in the browser console instead:
 - Heat: set `wanted = 2` and `heatTotal = 9`, pause, SAVE, reload
   the page, CONTINUE: `wanted` is 2, `heatTotal` is 9, and
   `#hud-heat` reads "HEAT 9★ TOTAL".
+
+- R3 rev A — cab work (17 Nov, recording 01a1ea4f, run under the
+  R3 recording): new `game/src/taxi.js` (211 lines) plus new lines
+  in every other counted code file and all four root docs; 598
+  added / 35 removed lines vs HEAD `7b39b23` (575 non-blank added).
+  `main.ts` twice → `diff -r` clean (dossier
+  `sha256 a501fa6e1113811bc721f99ce143acd9715c89503537449bbdc4f835f3acf41f`);
+  the dossier text now holds 10 files — the 163,840-byte text
+  budget (the scorer's gate) is spent before audio.js, hud.js,
+  shots.js and taxi.js, which are still copied to /output and still
+  played; `main.ts` now proves those four by the copy itself, not
+  by the dossier text. `tools/playtest.mjs` 23/23 PASS, zero page
+  errors; a 14-check taxi probe (`tools/taxi-probe.mjs`, real
+  browser) 14/14 PASS, zero page errors: a parked taxi exists,
+  entering it offers a shift (fare $58 quoted), a passenger waits
+  at the kerb, driving the taxi to the pickup boards them (timer
+  37 s), driving to the destination pays out ($250 → $337,
+  $58 fare + $29 tip), fares 1, rating 5.0, HUD taxi line shows the
+  pickup then the record. Screenshots NOT re-captured: no visual
+  changed (the taxi markers and HUD line only appear during a live
+  shift, and no staged scene starts one).

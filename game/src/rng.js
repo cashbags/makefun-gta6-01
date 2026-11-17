@@ -84,8 +84,7 @@ export function createRandom(seed) {
     // so the cost is the same as pick() — the rarity lives in the
     // weights, not in extra draws. Traffic uses it for rare kinds
     // (a bus or a limo shows up about as often as a second taxi).
-    pickWeighted(list, weights) {
-      let total = 0;
+    pickWeighted(list, weights) {      let total = 0;
       for (const w of weights) total += w;
       let r = next() * total;
       for (let i = 0; i < list.length; i += 1) {
@@ -93,6 +92,22 @@ export function createRandom(seed) {
         if (r <= 0) return list[i];
       }
       return list[list.length - 1];
+    },
+    // N distinct elements of a list, in draw order: a partial Fisher–
+    // Yates that costs exactly n draws, so the caller's later draws
+    // stay put. The taxi job uses it to pick two different stops for
+    // one fare — a pickup and a destination that can never be the
+    // same place — without a retry loop that would cost an unknown
+    // number of draws.
+    pickN(list, n) {
+      if (n >= list.length) return this.shuffle(list);
+      const out = [];
+      const rest = list.slice();
+      for (let i = 0; i < n; i += 1) {
+        const j = Math.floor(next() * rest.length);
+        out.push(rest.splice(j, 1)[0]);
+      }
+      return out;
     },
     // A schedule of `count` start times: the first no earlier than
     // `first`, each lasting a draw inside [durMin, durMax], each gap

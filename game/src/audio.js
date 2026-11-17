@@ -245,6 +245,14 @@ export function createAudio() {
       blip(660, 0.09, 0.2);
       setTimeout(() => blip(990, 0.12, 0.2), 90);
     },
+    // The taxi meter: a bright two-tone ding when a fare is offered
+    // and again when one pays out, higher than the pickup blip so the
+    // player hears "money" instead of "item". Same blip helper, same
+    // guard — audio is decoration, never a crash.
+    fare() {
+      blip(880, 0.1, 0.22);
+      setTimeout(() => blip(1318, 0.16, 0.22), 110);
+    },
     mission() {
       blip(523, 0.12, 0.22);
       setTimeout(() => blip(659, 0.12, 0.22), 120);
