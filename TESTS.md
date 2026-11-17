@@ -32,7 +32,7 @@ figure.
 
 - Served with `node serve.ts --port 8904`, driven in Chromium
   Headless Shell through playwright-core (`tools/playtest.mjs`).
-  24 checks, all PASS, zero page errors, zero console errors:
+  23 checks, all PASS, zero page errors, zero console errors:
   title → start ($250, 0 stars, mission 0) → steal a parked car with
   E (+1 star, cars stolen 1) → drive (24.0–25.6 m covered across runs)
   → speed shown in km/h → exit with E → shoot (ammo 12 → 11) →
@@ -42,12 +42,15 @@ figure.
   returns to play → pause overlay → save → reload → CONTINUE offered
   → continue keeps cash $1,650 and mission 2.
 - The fence, checked separately (`tools/boundary-probe.mjs`, 9 checks,
-  all PASS, zero page errors): driving north stops at z = −163, east
+  all PASS, zero page errors): driving north stops at z = −236, east
   at x = 171, south at z = 167, walking west stops at x = −171; the
   car reports `bounded: true` and the toast reads "City limits — the
-  fence is the end of Solmar."; the docks (−161, 0) and the marina
-  (30, 159) both sit inside the fence, so every mission marker stays
-  reachable.
+  fence is the end of Solmar."; driving north up the access road
+  (x = 20) reaches the airport forecourt at z = −182.4, past the old
+  fence line at −163; the docks (−161, 0) and the marina
+  (30, 159) both sit inside the fence, and the airport (20, −182)
+  and runway (20, −218) sit inside the extended north fence, so every
+  mission marker stays reachable.
 
 ## Screenshots are real browser captures
 
@@ -211,7 +214,7 @@ failure: (1) `node --check` on every `game/src/*.js` file (the
 two TypeScript files, `main.ts` and `serve.ts`, are checked by
 running them, not by `--check`); (2) two `main.ts` runs into two
 directories and `diff -r` — any difference means the edit broke
-determinism; (3) `tools/playtest.mjs` — 24 checks, zero page
+determinism; (3) `tools/playtest.mjs` — 23 checks, zero page
 errors; (4) `tools/boundary-probe.mjs` — 9 checks, zero page
 errors; (5) `tools/timer-probe.mjs` — 9 checks, zero page errors;
 (6) `tools/shots.mjs` and verify the four captures from disk for
@@ -251,8 +254,73 @@ machine could make it take longer — the probe waits up to 40 s
 for it. What does not move between runs: the dossier hash for a
 fixed repo state, the screenshot bytes for a fixed repo state
 and seed (the staged scenes run a fixed number of steps), the
-clamped fence coordinates (exact: −163, 171, 167, −171), the
+clamped fence coordinates (exact: −236, 171, 167, −171), the
 mission payouts, and the kit check's pass/fail counts. If a
 re-run ever changes one of the fixed numbers, that is a real
 regression, not timing noise — look at the RNG order and the
 step count first.
+
+## R2 re-author verification (17 Nov, recording 01a1ea38)
+
+Two revisions under one live recording, both verified before and
+after: rev1 (airport district, weather, missions 6–8, roadblocks,
+new vehicles, ped moods) and rev2 (the wiring in main.js, audio,
+HUD, the airport screenshot scene, the dossier self-check). The
+numbers below are from the rev2 run, in this session, against the
+committed repo where a commit is named.
+
+- Determinism: `MAKEFUN_OUTPUT_DIR=/tmp/gta6-r2-out1 node main.ts`
+  and the same into `/tmp/gta6-r2-out2`, then `diff -r`: no
+  differences. Ran twice — once after rev1, once after rev2 —
+  byte-identical both times. The dossier hash at rev2 is
+  `sha256 22f4d5f05b52f9b6aa52552f1b0974f766959e673d801dc4441b4411f60b498c`
+  (it was `57795cc9…` at rev1; it moves because the game files and
+  the screenshots changed, never because the docs changed). The
+  dossier read-back in `main.ts` proves the new modules were
+  copied: it throws if `game/src/airport.js` or
+  `game/src/weather.js` is missing from the dossier.
+- Live play: `tools/playtest.mjs`, 23 checks, all PASS, zero page
+  errors — the same 23 as before the re-author (the file has 23
+  `check(` calls; the "24" in the older entries above was the
+  count as written then). Car moved 18.3 m on the drive check in
+  this run (18.7 m on the rev1 run); the range across runs is
+  timing, not a regression.
+- Boundary: `tools/boundary-probe.mjs`, 9 checks, all PASS, zero
+  page errors. North stops at z = −236.0 (`bounded: true`, toast
+  shown); the car reaches the airport forecourt at z = −182.4
+  driving north up the access road; east x = 171.0, south
+  z = 167.0, west on foot x = −171.0; docks (−161, 0), marina
+  (30, 159), airport (20, −182) and runway (20, −218) all inside
+  the fence.
+- New systems, probed end to end in headless Chromium (a throwaway
+  probe, 30 checks, all PASS, zero page errors, run twice with the
+  same result): airport markers exist (airport 20, −182; hangar
+  −60, −178; runway 20, −218; shuttle 34, −184); the shuttle is
+  parked and mission-flagged; pedestrians number 32 (24 street +
+  8 forecourt crowd); bus/limo kinds exist in traffic or parked;
+  the weather chip reads "10:10 · Day" at start, grip 1, five rain
+  windows with the first at 391.4 s; the taxiing plane moves
+  (−39.2 → −33.3 over 3 s); at 01:00 the phase is Night with sun
+  intensity 0.18; inside the first rain window the rain ramps to
+  0.90 and the grip falls to 0.77. Missions 6–8 play through: the
+  Runway Job completes (+$3,000, cash $3,250), the Arms Deal
+  completes (+$6,500, cash $9,750, grab trips 3 stars), the Finale
+  Escape completes (story screen shown). A roadblock spawns at
+  4 stars while driving (3 colliders) and clears when the heat
+  drops to 0; an interceptor spawns at 4 stars. Heat persists
+  across save/load: wanted 2 and heat total 9 survive a reload
+  and a CONTINUE, and the HUD reads "HEAT 9★ TOTAL".
+- Screenshots: all four re-captured with `tools/shots.mjs` in the
+  real browser (the visuals changed — new HUD elements, new
+  minimap scale, new district — and shot 4 is now the airport
+  scene instead of the docks mission). All 1280×720, all under
+  256 KiB: 67,170 / 78,818 / 68,559 / 60,858 bytes. The old
+  `4-mission.jpg` was deleted; `shots.json` now lists
+  `4-airport.jpg` (`?shot=airport&seed=1`).
+- No `Math.random()` or `Date.now()` in any simulation file; the
+  only wall-clock reads are the render loop and the audio
+  sequencer, which never feed simulation state. The audio noise
+  buffers use `Math.random()` to fill, as the pre-existing bursts
+  always did — audio is decoration, and no simulation state ever
+  reads it. `serve.ts` answers `GET /healthz` with
+  `{"ok":true,"files":16,"bytes":2315993}` for the current tree.

@@ -549,8 +549,180 @@ invisible to the judge even when it is obvious in play.
 
 ## What was deliberately left out
 
-No car health or vehicle damage model, no melee, no day/night cycle, no
-interior locations, no radio stations beyond the bassline loop. Each would
+No car health or vehicle damage model, no melee, no interior
+locations, no radio stations beyond the bassline loop. Each would
 have cost a system the brief does not ask for; the brief asks for
 completeness across the genre's systems, and every one of those is in and
-wired to the others.
+wired to the others. The day/night cycle used to be on this list; the
+R2 re-author added it (see "The sky" below), along with the airport,
+the rain, the roadblocks and the second story arc — so the list is
+shorter than it was, and what is left on it is still deliberately
+absent, not merely unfinished.
+
+## The airport (`airport.js`)
+
+Solmar International sits on the strip north of the last street,
+inside the extended fence (BOUNDS.zMin is now −236, the ground plane
+reaches −247, so the fence still stands on concrete). It is a second
+neighbourhood, not a backdrop: a terminal with a glass front and a
+roof sign, a hangar with an open door, a control tower (the tallest
+thing on the north edge, the landmark the player steers by), a fuel
+farm of three tanks, a runway with threshold bars and centre dashes,
+a taxiway, an access road joining the northernmost street to the
+forecourt, floodlight poles, and a windsock. Two planes are parked
+on the apron and one taxis the runway forever — east, turn, west —
+on a triangle wave of the weather clock, so its position is a
+function of play time and needs no state of its own.
+
+The airport is built last in `createCity`, from a fork of the city's
+stream, so its draws never touch the city's: the city, the traffic
+and the opening pedestrians build exactly as they did before the
+airport existed. Its colliders, parked spots, ped spots and markers
+are appended to the same arrays the city returns, so the fence (drawn
+on the extended BOUNDS rectangle) already stands north of it, the
+shuttle parks at the forecourt as a mission-flagged car, and the
+missions can point at the terminal, the hangar and the runway. The
+runway and taxiway have no colliders on purpose: the player drives
+the full length of the runway in the finale, and a collider there
+would end the escape at the threshold.
+
+## The sky (`weather.js`)
+
+One full day is 480 seconds of play, starting at 10:00, so a session
+sees afternoon slide into dusk and night without waiting around for
+it: the clock runs three game-minutes per real second. The sun's
+elevation comes from the clock (sunrise 06:00, noon 12:00, sunset
+18:00); daylight is the elevation clamped and eased, and the light
+follows it — sun intensity 0.18 at night to 1.60 at noon, hemisphere
+0.22 to 0.90, colours blended through three stops (noon white-gold,
+dusk orange, night blue) so sunset is a long slide, not a switch.
+Night never goes fully black: the moon is a dim blue sun, so the
+player can still drive at 02:00, and the street lamps and floodlights
+are basic materials the weather never dims.
+
+Rain comes in five seeded windows, drawn once at build from a fork
+(`sampleSchedule` in `rng.js`): the first opens no earlier than 360
+seconds of play, each lasts 45–90 seconds, gaps of 7–13 minutes
+between them. The rain ramps in and out over ten seconds, and while
+it rains the grip falls from 1 to 0.75 — `main.js` passes the grip
+into `stepPlayerCar`, so a rainy chase accelerates slower, brakes
+longer and steers less. The rain itself is one `THREE.Points` cloud
+of 900 drops in a box that follows the player; the drop positions
+are a pure function of play time and the seeded offsets, so the rain
+is deterministic per step count. The fog closes in while it rains
+(near 140→80, far 460→280), which is what makes a wet night feel
+closer than a dry one.
+
+Determinism is the whole design: `stepWeather` advances on `dt`
+only, the schedule is fixed per seed, and no shot can ever see rain
+— every staged scene runs at most five seconds of play, and the
+first window opens at 360. The screenshots stay dry and identical
+across captures, while a longer session drives through weather.
+
+## Missions 6–8: the Airport Arc (`missions.js`)
+
+The first five jobs are the Vega Jobs in the city; the last three
+are the Airport Arc at Solmar International, and they introduce no
+new stage kinds — the arc recombines reach, steal, timed, evade and
+grab on new ground, with the grab generalised by `grabAt` so the
+same stage can take the vault cash or the hangar crate. The arc's
+through-line is Marisol cashing out: the Runway Job moves her money
+(terminal, steal the shuttle, 120-second drive to the docks,
+$3,000), the Arms Deal arms her crew (hangar, grab the crate, escape
+to the flat, $6,500), and the Finale Escape gets Rook out of Solmar
+(timed run to the runway in 90 seconds, evade, reach the marina,
+$12,000). The finale starts at four stars — interceptors and
+roadblocks already in the deck — because it is an escape, not a job
+that goes wrong halfway through.
+
+The arc is the one exception to the rule that missions never send
+the player somewhere new, and it earns the exception by introducing
+the airport one place at a time: the terminal in mission 6, the
+hangar in mission 7, the runway in mission 8, each stage pointing at
+a place the previous stage already showed the player. The airport
+markers sit inside the extended north fence by the same rule as the
+docks and the marina (terminal −182, hangar −178, runway −218,
+fence −236), so no mission is ever blocked by the edge. The story
+screen's line changes with the ending: the Big Score closes the
+first arc ("Solmar is yours"), the finale closes the game ("Rook
+leaves Solmar by boat").
+
+## Roadblocks and heat persistence (`vehicles.js`, `main.js`)
+
+At three stars or more, while the player is driving, the PD throws
+a roadblock across the road 42 metres ahead: three striped barriers
+with a gap at each kerb, built by `createRoadblock` and cleared by
+`clearRoadblock`, one at a time, no sooner than 20 seconds after the
+last one cleared. The barriers are real colliders in the city's
+list, so ramming one is a crash like any other, and clearing removes
+the meshes and the colliders together, so a cleared roadblock leaves
+nothing invisible on the road. A bust or a waste clears the
+roadblock with the rest of the heat.
+
+Heat persists: the wanted level and the lifetime heat total (every
+star ever earned, never reset) are saved with the game and restored
+on load, so quitting mid-chase does not wash the heat away — the
+player comes back to the stars they left, and the HUD says so ("The
+heat remembers you"). Busted and wasted still clear the stars; the
+fine is the price, and the lifetime total is the record. The HUD
+shows the total under the armour line ("HEAT 9★ TOTAL"), so the
+record is always visible, not buried in a menu.
+
+## New vehicles (`vehicles.js`)
+
+Eleven kinds now. The bus (9 metres, the longest vehicle in the
+game, slower than a truck) and the limo (a stretched sedan for the
+airport forecourt and the plaza) join the traffic mix through a
+weighted pick — sedans and taxis dominate, a bus or a limo shows up
+about as often as a second taxi. The shuttle is the airport's own
+bus, white with a blue stripe and a roof sign, and the only
+mission-flagged car besides the red sports car. The interceptor is
+the PD's fast answer at four stars and up: black, chase speed 22
+against the patrol car's 19, with a red-and-blue bar and a spoiler.
+Traffic picks are weighted with `pickWeighted` (one draw, the rarity
+in the weights), and the chase speed lives in `chaseSpeed` so the
+police cars in `main.js` never hard-code a number again.
+
+## Pedestrian moods (`peds.js`)
+
+Pedestrians have moods, drawn at spawn, never in the step: commuters
+walk the sidewalks at a steady pace, tourists stroll and stop to look
+around (a pause timer set at spawn, 2.5 seconds standing still),
+joggers run the sidewalks faster than a walk and never stop. About
+one ped in five is a jaywalker: when their walk timer comes due they
+swap walking axis instead of turning, stepping off the sidewalk and
+across the street. A scare now makes a ped run directly away from the
+scare on the dominant axis, not just flip direction on its current
+one — a gunshot in front of a ped sends them away from the shooter.
+
+The airport has its own crowd: eight pedestrians bounded to the
+terminal forecourt, walking between the doors and the shuttle stop,
+mostly tourists and commuters, never joggers. They are ordinary peds
+with a bounds box, so the step keeps them inside it and the respawn
+loop treats them like anyone else.
+
+## Sound for the new systems (`audio.js`)
+
+Rain is a two-second loop of white noise through a lowpass, built
+once and silent until the weather says otherwise; its gain follows
+`weather.rain`, so rain fades in over the same ten seconds the sky
+does. Thunder cracks once when a rain window opens (a long low burst
+with a delayed second rumble). The airport is a low jet rumble, a
+sawtooth at 48 Hz through a 160 Hz lowpass, whose gain follows the
+player's distance to the terminal — a constant presence on the
+forecourt, silent past 150 metres in the city. All three are
+synthesised, like every other sound in the game; no audio files.
+
+## HUD additions (`hud.js`, `index.html`)
+
+The top bar carries a weather chip — the in-world clock, the phase,
+and Rain while a window is open ("10:00 · Day", "19:05 · Dusk ·
+Rain") — so the HUD never disagrees with the sky. The vitals carry
+the lifetime heat total. The arc line under the objective says which
+story arc the player is in and how much of it is left ("The Airport
+Arc — mission 6 of 8 (arc 1 of 3)"). The minimap draws the airport
+strip north of the grid (apron, terminal, runway with dashes) from
+the same `AIRPORT` bounds the 3D district uses, and its scale grew
+from half + 70 to half + 80 so the extended north fence and the whole
+runway fit inside it. The timed-mission countdown moved from 108 px
+to 142 px so it never overlaps the arc line.

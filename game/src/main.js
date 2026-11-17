@@ -3,19 +3,22 @@
 // one fixed-step simulation: input is sampled every frame, the world
 // advances in 1/60 s steps, and the renderer paints what is there. The
 // simulation owns the player, the cars, the pedestrians, the police, the
-// wanted level and the missions; the HUD and the minimap read it every
-// frame. The city ends at a visible fence (BOUNDS in config.js): hitting
-// it thuds and toasts instead of letting the player drive onto bare
-// ground. ?seed=N fixes the world. ?shot=start|drive|chase|mission stages a
-// scene instead of running the loop, paints it twice and sets
-// window.__shotReady for a screenshot.
+// wanted level, the missions, the weather and the roadblocks; the HUD and
+// the minimap read it every frame. The city ends at a visible fence
+// (BOUNDS in config.js): hitting it thuds and toasts instead of letting
+// the player drive onto bare ground. ?seed=N fixes the world.
+// ?shot=start|drive|chase|mission|airport stages a scene instead of
+// running the loop, paints it twice and sets window.__shotReady for a
+// screenshot.
 import * as THREE from 'three';
-import { STEP, CITY, PLAYER, CAR, WANTED, COMBAT, MISSIONS, SAVE_KEY } from './config.js';
+import { STEP, CITY, PLAYER, CAR, WANTED, COMBAT, MISSIONS, SAVE_KEY, ROADBLOCK } from './config.js';
 import { createRandom } from './rng.js';
 import { createCity, resolveCollisions } from './city.js';
-import { createCar, createTraffic, stepTraffic, stepPlayerCar, placeCar } from './vehicles.js';
-import { createPed, createCop, placePerson, stepPeds, stepCops, nearestPed, PED_COUNT } from './peds.js';
-import { createMissions, currentObjective, currentStage, currentWaypoint, stepMissions, onMissionStart } from './missions.js';
+import { createCar, createTraffic, stepTraffic, stepPlayerCar, placeCar, createRoadblock, clearRoadblock, chaseSpeed } from './vehicles.js';
+import { createPed, createCop, createAirportCrowd, placePerson, stepPeds, stepCops, nearestPed, PED_COUNT } from './peds.js';
+import { createMissions, currentObjective, currentStage, currentWaypoint, stepMissions, onMissionStart, storyArc } from './missions.js';
+import { createWeather, stepWeather, applyWeather, createRainPoints, stepRain, weatherLabel } from './weather.js';
+import { createTaxiPlane, stepTaxiPlane, AIRPORT } from './airport.js';
 import { createAudio } from './audio.js';
 import { createHud } from './hud.js';
 import { stageShot } from './shots.js';
@@ -48,6 +51,16 @@ scene.add(sun);
 const city = createCity(rng);
 scene.add(city.group);
 
+// The sky and the airport's moving parts are built from forks, after
+// the city, so they cost the main stream nothing: the weather's rain
+// schedule, the rain drops, the taxiing plane and the forecourt crowd
+// all draw from their own streams. The crowd joins the same peds
+// array as the street pedestrians, so gunshots, run-overs and the
+// respawn loop treat them like anyone else.
+const weather = createWeather(rng.fork());
+const rainPoints = createRainPoints(scene);
+const taxiPlane = createTaxiPlane(scene);
+
 const traffic = createTraffic(city, rng.fork(), 14, scene);
 const parked = [];
 for (const spot of city.parkedSpots) {
@@ -70,6 +83,8 @@ for (let i = 0; i < PED_COUNT; i += 1) {
   placePerson(ped, scene);
   peds.push(ped);
 }
+// The airport crowd walks the terminal forecourt, not the streets.
+for (const ped of createAirportCrowd(city, rng.fork(), scene)) peds.push(ped);
 const footCops = [];
 const policeCars = [];
 
@@ -149,6 +164,10 @@ const game = {
   screen: 'title',
   cash: 250,
   wanted: 0,
+  // Lifetime heat: every star ever earned, across the whole save, never
+  // reset by a bust or a reload. The HUD shows it as the player's
+  // record, and the save carries it alongside the current stars.
+  heatTotal: 0,
   lastCrime: -999,
   quietSince: 0,
   playSeconds: 0,
@@ -158,6 +177,11 @@ const game = {
   missionStartApplied: -1,
   shake: 0,
   lastBoundaryToast: -99, // game.time of the last city-limit warning
+  // The live roadblock, if the PD has one up, and when the last one
+  // cleared (the cooldown lives here, not in the barrier builder).
+  roadblock: null,
+  lastRoadblockAt: -999,
+  prevRain: 0, // rain level last step, so thunder fires on the rise
 };
 let saveData = null;
 try {
@@ -183,6 +207,7 @@ function boundaryHit() {
 
 function addWanted(stars, reason) {
   if (game.wanted < WANTED.maxStars) game.wanted = Math.min(WANTED.maxStars, game.wanted + stars);
+  game.heatTotal += stars;
   game.lastCrime = game.time;
   game.quietSince = game.time;
   hud.showToast(`WANTED ${'★'.repeat(game.wanted)} — ${reason}`, 3);
@@ -194,6 +219,11 @@ function saveGame() {
       cash: game.cash, mission: missions.index, stage: missions.stage,
       x: player.x, z: player.z, health: player.health, armor: player.armor,
       ammo: player.ammo, reserveAmmo: player.reserveAmmo, playSeconds: game.playSeconds,
+      // Heat persistence: the wanted level and the lifetime heat total
+      // survive a reload, so quitting mid-chase does not wash the
+      // heat away. A bust or a waste still clears the stars (the fine
+      // is the price); the total never resets.
+      wanted: game.wanted, heatTotal: game.heatTotal,
     }));
     hud.showToast('Game saved.', 2);
   } catch { /* storage can be off; the game still plays */ }
@@ -212,6 +242,15 @@ function loadSave(data) {
   player.ammo = data.ammo ?? COMBAT.magSize;
   player.reserveAmmo = data.reserveAmmo ?? 48;
   game.playSeconds = data.playSeconds ?? 0;
+  // Restore the heat: the stars come back capped at five, the lifetime
+  // total comes back as it was, and the player is told the heat
+  // remembered them — because it did.
+  game.wanted = Math.min(WANTED.maxStars, data.wanted ?? 0);
+  game.heatTotal = data.heatTotal ?? 0;
+  if (game.wanted > 0) {
+    game.lastCrime = game.time;
+    hud.showToast(`The heat remembers you — ${'★'.repeat(game.wanted)} still on you.`, 4);
+  }
 }
 
 // --- Input ---
@@ -367,7 +406,11 @@ function nearestCar(maxDist) {
 function seatPlayerInCar(car, silent) {
   player.inCar = true;
   player.car = car;
-  player.inMissionCar = car.mission === 'wheels';
+  // Any mission-flagged car counts for a steal stage: the red sports
+  // car for Hot Wheels, the airport shuttle for the Runway Job. Only
+  // those two cars carry a mission flag, so no ordinary steal can
+  // complete a mission by accident.
+  player.inMissionCar = car.mission != null;
   if (car.parked) {
     const i = parked.indexOf(car);
     if (i >= 0) parked.splice(i, 1);
@@ -428,7 +471,13 @@ function spawnPolice() {
     const along = rng.range(-CITY.half + 10, CITY.half - 10);
     const x = axis === 'x' ? along : road + 3.2;
     const z = axis === 'x' ? road + 3.2 : along;
-    const car = createCar('police', x, z, axis === 'x' ? Math.PI / 2 : 0);
+    // At four stars and up the PD sends interceptors, not patrol cars,
+    // for the extra units: black, faster (chase speed 22 against the
+    // patrol car's 19), and the reason a four-star chase is won by
+    // turning, not by outrunning them. The first two units stay patrol
+    // cars, so the player always knows which kind is which.
+    const kind = game.wanted >= 4 && policeCars.length >= 2 ? 'interceptor' : 'police';
+    const car = createCar(kind, x, z, axis === 'x' ? Math.PI / 2 : 0);
     car.road = axis;
     car.dir = 1;
     car.lane = 3.2;
@@ -456,7 +505,10 @@ function stepPoliceCars(dt) {
     while (diff > Math.PI) diff -= Math.PI * 2;
     while (diff < -Math.PI) diff += Math.PI * 2;
     car.angle += Math.max(-1.6 * dt, Math.min(1.6 * dt, diff));
-    car.speed = Math.min(19, car.speed + 10 * dt);
+    // Chase speed by kind: interceptors top out at 22, patrol cars at
+    // 19 (chaseSpeed in vehicles.js). The car accelerates toward its
+    // cap, so an interceptor closes the gap faster than a patrol car.
+    car.speed = Math.min(chaseSpeed(car.kind), car.speed + 10 * dt);
     const nx = car.x + Math.sin(car.angle) * car.speed * dt;
     const nz = car.z + Math.cos(car.angle) * car.speed * dt;
     const fixed = resolveCollisions(city, nx, nz, 1.6);
@@ -483,6 +535,18 @@ function stepPoliceCars(dt) {
 }
 
 // --- Busted / wasted ---
+// A bust or a waste clears the roadblock with the rest of the heat:
+// the player wakes up at the hospital, the barriers are gone, and
+// the next chase starts clean. The colliders go with the meshes, so
+// nothing invisible is left standing on the road.
+function clearRoadblockNow() {
+  if (game.roadblock) {
+    clearRoadblock(scene, city, game.roadblock);
+    game.roadblock = null;
+    game.lastRoadblockAt = game.time;
+  }
+}
+
 function busted() {
   if (game.screen !== 'playing') return;
   game.screen = 'busted';
@@ -490,6 +554,7 @@ function busted() {
   const fine = Math.min(game.cash, 300);
   game.cash -= fine;
   game.wanted = 0;
+  clearRoadblockNow();
   for (const cop of footCops) scene.remove(cop.mesh);
   footCops.length = 0;
   for (const car of policeCars) scene.remove(car.mesh);
@@ -516,6 +581,7 @@ function wasted() {
   const lost = Math.min(game.cash, 300);
   game.cash -= lost;
   game.wanted = 0;
+  clearRoadblockNow();
   for (const cop of footCops) scene.remove(cop.mesh);
   footCops.length = 0;
   for (const car of policeCars) scene.remove(car.mesh);
@@ -616,9 +682,11 @@ function formatTime(seconds) {
 // --- Simulation step: what one 1/60 s tick does, in order ---
 // The step is deliberately boring and sequential, because every system
 // reads the results of the ones before it and the order is the design:
-//   1. Clock and input. game.time advances; readInput() merges the
-//      keyboard and the ?shot= autopilot into one input object, so the
-//      staged scenes drive the same code the player drives.
+//   1. Clock, weather and input. game.time advances; the sky advances
+//      with it (stepWeather, then the lights, the rain and the taxiing
+//      plane); readInput() merges the keyboard and the ?shot= autopilot
+//      into one input object, so the staged scenes drive the same code
+//      the player drives.
 //   2. Mission start effects, once per mission. The Heat job sets
 //      three stars here, so the player is hot before they move.
 //   3. The player. In a car, stepPlayerCar moves the car and the
@@ -639,13 +707,16 @@ function formatTime(seconds) {
 //      then hide for 30 s.
 //   7. Wanted: police spawn to match the stars, stars decay after
 //      25 quiet seconds, foot cops chase/shoot/bust, patrol cars
-//      chase and ram. A bust or a waste exits the step early through
-//      busted()/wasted(), which reset the player at the hospital.
+//      chase and ram, interceptors join at four stars, and a roadblock
+//      goes up ahead of the player at three stars while driving. A bust
+//      or a waste exits the step early through busted()/wasted(), which
+//      reset the player at the hospital and clear the roadblock.
 //   8. Missions: stepMissions reads the player and returns events;
 //      the step turns events into cash, toasts, sounds and saves.
 //   9. Beacon, player mesh, camera, audio, HUD. The camera chases
 //      from behind the player's heading (further and higher in a
-//      car), shake decays here, and the HUD reads the finished state.
+//      car), shake decays here, and the HUD reads the finished state —
+//      including the weather chip, the lifetime heat and the story arc.
 // Nothing in this list allocates per frame except the small arrays
 // the police and traffic checks build; the render loop runs the step
 // in a fixed-step accumulator so a slow frame advances the world in
@@ -654,6 +725,20 @@ function step(dt) {
   game.time += dt;
   if (game.screen === 'playing') game.playSeconds += dt;
   readInput();
+
+  // The sky: the clock, the rain and the light advance with the same
+  // dt as everything else, so the weather is a function of the step
+  // count and the seed, never of the wall clock. Thunder fires once,
+  // when the rain ramps past half strength; the taxiing plane moves
+  // on the same clock. Rain past the first window is impossible in a
+  // staged shot (the first window opens at 360 s of play), so the
+  // screenshots stay dry and deterministic.
+  stepWeather(weather, dt);
+  applyWeather(scene, sun, hemi, weather);
+  stepRain(rainPoints, weather, player.x, player.z);
+  stepTaxiPlane(taxiPlane, weather.time);
+  if (weather.rain > 0.5 && game.prevRain <= 0.5) audio.thunder();
+  game.prevRain = weather.rain;
 
   // Mission stage effects that must apply once when a mission activates.
   if (game.screen === 'playing' && game.missionStartApplied !== missions.index && !missions.storyComplete) {
@@ -668,7 +753,9 @@ function step(dt) {
 
   // Player.
   if (player.inCar && player.car) {
-    stepPlayerCar(player.car, input, dt, city);
+    // Wet roads cut the grip: stepPlayerCar takes weather.grip, so a
+    // rainy chase accelerates slower, brakes longer and steers less.
+    stepPlayerCar(player.car, input, dt, city, weather.grip);
     if (player.car.bounded) boundaryHit();
     player.x = player.car.x;
     player.z = player.car.z;
@@ -845,6 +932,27 @@ function step(dt) {
     }
     if (bustedNow) busted();
     stepPoliceCars(dt);
+    // Roadblocks: at three stars or more, while the player is driving,
+    // the PD throws one across the road ahead — 42 m up, no sooner
+    // than 20 s after the last one cleared. It stands until the heat
+    // is off or the player gets 130 m away, and it is real colliders,
+    // so the way through is around the kerb gap, not through the boards.
+    if (game.roadblock) {
+      const d = Math.hypot(game.roadblock.x - player.x, game.roadblock.z - player.z);
+      if (game.wanted === 0 || d > ROADBLOCK.clearDistance) clearRoadblockNow();
+    } else if (game.wanted >= ROADBLOCK.minStars && player.inCar
+      && game.time - game.lastRoadblockAt > ROADBLOCK.cooldownSeconds) {
+      const a = player.car ? player.car.angle : player.heading;
+      const bx = player.x + Math.sin(a) * ROADBLOCK.aheadMetres;
+      const bz = player.z + Math.cos(a) * ROADBLOCK.aheadMetres;
+      const fixed = resolveCollisions(city, bx, bz, 1);
+      game.roadblock = {
+        ...createRoadblock(scene, city, fixed.x, fixed.z, a),
+        x: fixed.x, z: fixed.z,
+      };
+      hud.showToast('Roadblock ahead — the PD is closing the road.', 3);
+      audio.thud();
+    }
   }
 
   // Missions.
@@ -862,7 +970,9 @@ function step(dt) {
       } else if (e.type === 'stage') {
         hud.showToast(e.text, 5);
       } else if (e.type === 'grabbed') {
-        addWanted(3, 'The bank alarm is screaming');
+        // The alarm text travels with the event: the bank alarm for
+        // the Big Score, the buyers calling it in for the Arms Deal.
+        addWanted(3, e.alarm ?? 'The bank alarm is screaming');
         hud.showToast(e.text, 4);
         audio.mission();
       } else if (e.type === 'failed') {
@@ -909,9 +1019,12 @@ function step(dt) {
     camera.position.y += (rng.next() - 0.5) * game.shake;
   }
 
-  // Audio follows the drive.
+  // Audio follows the drive — and the weather, and the airport: the
+  // rain loop follows weather.rain, and the jet rumble follows the
+  // player's distance to the terminal.
   audio.update(player.inCar && player.car ? player.car.speed : player.speed, game.wanted,
-    footCops.some((c) => !c.dead && Math.hypot(c.x - player.x, c.z - player.z) < 40) || policeCars.length > 0);
+    footCops.some((c) => !c.dead && Math.hypot(c.x - player.x, c.z - player.z) < 40) || policeCars.length > 0,
+    { rain: weather.rain, airportDist: Math.hypot(player.x - AIRPORT.terminal.x, player.z - AIRPORT.terminal.z) });
 
   // HUD.
   hud.update({
@@ -922,6 +1035,11 @@ function step(dt) {
     // The countdown element reads these two: `timed` says a timed
     // stage is live, `timer` says how many seconds it has left.
     timer: missions.timer, timed: currentStage(missions)?.kind === 'timed',
+    // The weather chip (in-world clock, phase, rain), the lifetime
+    // heat total, and the story arc the HUD shows under the objective.
+    weather: weatherLabel(weather),
+    heat: game.heatTotal,
+    arc: storyArc(missions).text,
   }, dt);
   hud.drawMinimap({
     city, traffic, policeCars, footCops,
@@ -968,7 +1086,13 @@ function frame(now) {
 }
 
 // Debug handle for play-testing (read-only state for the test harness).
-window.__solmar = { game, player, missions, city, parked, traffic, peds, footCops, policeCars };
+window.__solmar = {
+  game, player, missions, city, parked, traffic, peds, footCops, policeCars,
+  weather, taxiPlane, airport: AIRPORT,
+  // The live roadblock, if one is up: the play-test reads its position
+  // and colliders to prove it stands and clears.
+  get roadblock() { return game.roadblock; },
+};
 
 // --- Shot mode: stage a deterministic scene, paint it, signal readiness ---
 if (shot) {

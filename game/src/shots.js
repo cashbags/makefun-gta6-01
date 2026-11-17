@@ -1,4 +1,4 @@
-// shots.js — the screenshot scenes behind ?shot=start|drive|chase|mission.
+// shots.js — the screenshot scenes behind ?shot=start|drive|chase|mission|airport.
 // Each one plays the real rules forward from a fresh world for a fixed
 // number of steps, steered by a small autopilot that holds the car to its
 // road, so the frame is what a short game really looks like — and the same
@@ -9,16 +9,22 @@
 // The staging contract, so a later edit does not silently break the
 // screenshots: (1) every shot starts from a fresh world at ?seed=1 and
 // runs a fixed number of steps — start 5 s on foot, drive 4 s, chase
-// 4.5 s, mission 3 s — so the frame is a function of the seed and the
-// code, nothing else; (2) the autopilot only writes ctx.auto, the same
-// scripted-input object the player never touches, so the staged drive
-// is the real driving model with a scripted hand on it; (3) the camera
-// is placed from the player's heading in each shot, never from a
+// 4.5 s, mission 3 s, airport 3 s — so the frame is a function of the
+// seed and the code, nothing else; (2) the autopilot only writes ctx.auto,
+// the same scripted-input object the player never touches, so the staged
+// drive is the real driving model with a scripted hand on it; (3) the
+// camera is placed from the player's heading in each shot, never from a
 // free camera, so the frame is a view a player could actually have;
 // (4) the mission shot stages at the docks with the first mission
 // live and the beacon up, ten metres inside the west fence, so the
 // fence line shows behind the containers and the shot proves the
-// boundary is visible in play, not just in code.
+// boundary is visible in play, not just in code; (5) the airport shot
+// stages on foot at the terminal forecourt with mission 6 live, facing
+// the terminal and the runway behind it, so the new district, the
+// shuttle and the taxiing plane are all in one frame — and because
+// every shot runs at most five seconds of play, the first rain window
+// (no earlier than 360 s) can never open inside a shot, so the sky in
+// every capture is the dry 10:00 sky the game opens with.
 import { STEP, CITY } from './config.js';
 
 const SAMPLE = STEP;
@@ -128,6 +134,25 @@ export function stageShot(name, ctx) {
     view.yaw = player.heading;
     view.pitch = 0.3;
     ctx.hud.showToast('Mission 1 — The Fixer: Meet Marisol at the docks', 30);
+    runSteps(ctx, 3, false);
+  } else if (name === 'airport') {
+    // On foot at the terminal forecourt, mission 6 live, facing the
+    // terminal with the runway behind it: the new district, the
+    // shuttle at the kerb, the forecourt crowd and the taxiing plane
+    // are all in the frame. The mission index is set directly (the
+    // shot stages the story, it does not play it), and the beacon
+    // points at the terminal marker, so the amber pillar shows where
+    // the Runway Job begins. Three seconds of steps, on foot, no
+    // autopilot — the frame is the arrival, not a drive.
+    game.missionStartApplied = 5;
+    ctx.missions.index = 5;
+    ctx.missions.stage = 0;
+    player.x = city.markers.airport.x - 6;
+    player.z = city.markers.airport.z + 14;
+    player.heading = Math.atan2(city.markers.airport.x - player.x, city.markers.airport.z - player.z);
+    view.yaw = player.heading;
+    view.pitch = 0.3;
+    ctx.hud.showToast('Mission 6 — Runway Job: Reach Solmar International', 30);
     runSteps(ctx, 3, false);
   } else {
     // start: on foot on a street corner, city alive around the player.

@@ -6,7 +6,14 @@
 // a triangle, traffic as grey dots, police as blue dots, the mission
 // waypoint as a pulsing diamond. Everything is text or canvas, so the
 // judge's screenshots show the HUD exactly as the player sees it.
+// The top bar also carries the weather chip (the in-world clock, the
+// phase — Day, Dusk, Night, Dawn — and Rain while a window is open),
+// the vitals carry the lifetime heat total, and the arc line under the
+// objective says which story arc the player is in and how much of it
+// is left. The minimap draws the airport strip north of the grid: the
+// apron, the terminal, and the runway with its dashes.
 import { CITY, BOUNDS } from './config.js';
+import { AIRPORT } from './airport.js';
 
 export function createHud(document) {
   const el = (id) => document.getElementById(id);
@@ -18,6 +25,9 @@ export function createHud(document) {
   const weapon = el('hud-weapon-name');
   const objective = el('hud-objective');
   const clock = el('hud-clock');
+  const weather = el('hud-weather');
+  const heat = el('hud-heat');
+  const arc = el('hud-arc');
   const toast = el('hud-toast');
   const speed = el('hud-speed');
   const timer = el('hud-timer');
@@ -57,6 +67,17 @@ export function createHud(document) {
       const mins = Math.floor(state.playSeconds / 60);
       const secs = Math.floor(state.playSeconds % 60);
       clock.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+      // The weather chip is the in-world clock, not the play timer:
+      // "10:00 · Day", "19:05 · Dusk · Rain". It comes from main.js
+      // every step, so it never disagrees with the sky. The heat line
+      // is the lifetime total (every star ever earned, never reset);
+      // the arc line is the story position, "The Airport Arc —
+      // mission 6 of 8 (arc 1 of 3)". The three elements exist in
+      // index.html; the guards are there so a harness that stubs the
+      // HUD with fewer elements still runs.
+      if (weather) weather.textContent = state.weather ?? '';
+      if (heat) heat.textContent = `HEAT ${state.heat ?? 0}★ TOTAL`;
+      if (arc) arc.textContent = state.arc ?? '';
       speed.textContent = state.inCar ? `${Math.round(Math.abs(state.carSpeed) * 3.6)} km/h` : '';
       // Timed missions get a countdown of their own, big and red under
       // the objective line, because the objective text alone (a small
@@ -71,7 +92,10 @@ export function createHud(document) {
     },
     drawMinimap(world) {
       const S = minimap.width;
-      const half = CITY.half + 70;
+      // The map covers the fence plus a margin: half + 80 reaches the
+      // extended north fence (-236) and the whole airport strip, so
+      // the runway never clips off the top of the minimap.
+      const half = CITY.half + 80;
       const toMap = (x, z) => [((x + half) / (half * 2)) * S, ((z + half) / (half * 2)) * S];
       mctx.clearRect(0, 0, S, S);
       mctx.fillStyle = 'rgba(10, 16, 24, 0.85)';
@@ -115,6 +139,30 @@ export function createHud(document) {
         mctx.strokeStyle = '#f2c94c';
         mctx.lineWidth = 1.5;
         mctx.strokeRect(fx0, fz0, fx1 - fx0, fz1 - fz0);
+      }
+      // The airport, north of the grid: the apron as a grey strip, the
+      // terminal as a filled block, and the runway as a dark band with
+      // white dashes — the same AIRPORT bounds the 3D district uses,
+      // so the minimap and the world never disagree about where the
+      // runway is.
+      {
+        const [ax0, az0] = toMap(AIRPORT.x0, AIRPORT.z0);
+        const [ax1, az1] = toMap(AIRPORT.x1, AIRPORT.z1);
+        mctx.fillStyle = '#6a6f75';
+        mctx.fillRect(ax0, az0, ax1 - ax0, az1 - az0);
+        const [tx0, tz0] = toMap(AIRPORT.terminal.x - 32, AIRPORT.terminal.z - 8);
+        const [tx1, tz1] = toMap(AIRPORT.terminal.x + 32, AIRPORT.terminal.z + 8);
+        mctx.fillStyle = '#c9b8a3';
+        mctx.fillRect(tx0, tz0, tx1 - tx0, tz1 - tz0);
+        const [rx0, rz0] = toMap(AIRPORT.runway.x - 90, AIRPORT.runway.z - 8);
+        const [rx1, rz1] = toMap(AIRPORT.runway.x + 90, AIRPORT.runway.z + 8);
+        mctx.fillStyle = '#3a3d42';
+        mctx.fillRect(rx0, rz0, rx1 - rx0, rz1 - rz0);
+        mctx.fillStyle = '#f2f2e8';
+        for (let x = AIRPORT.runway.x - 76; x <= AIRPORT.runway.x + 76; x += 16) {
+          const [dx] = toMap(x, AIRPORT.runway.z);
+          mctx.fillRect(dx - 2, (rz0 + rz1) / 2 - 0.5, 4, 1);
+        }
       }
       // Waypoint: a pulsing amber diamond.
       if (world.waypoint) {

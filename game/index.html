@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="SOLMAR — a complete open-world crime game in the spirit of GTA 6: drive, steal cars, evade the police and run five story missions across a living coastal city. Runs offline in a desktop browser.">
+<meta name="description" content="SOLMAR — a complete open-world crime game in the spirit of GTA 6: drive, steal cars, evade the police and run eight story missions across a living coastal city with an airport, a day/night cycle and rain. Runs offline in a desktop browser.">
 <title>SOLMAR — an open-world crime game</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -25,10 +25,16 @@
   #hud-stars { font-size: 20px; letter-spacing: 2px; color: #f2c94c; }
   #hud-stars.hot { color: #ff5a3c; }
   #hud-clock { font-size: 18px; color: #c8ccd2; }
+  #hud-weather { font-size: 15px; color: #7fb3d9; font-weight: 700; }
   #hud-objective {
     position: absolute; top: 64px; left: 50%; transform: translateX(-50%);
     background: rgba(11, 14, 20, 0.72); border: 1px solid rgba(255,255,255,0.16);
     padding: 7px 16px; border-radius: 6px; font-size: 14px; max-width: 640px; text-align: center;
+  }
+  #hud-arc {
+    position: absolute; top: 108px; left: 50%; transform: translateX(-50%);
+    font-size: 12px; letter-spacing: 1px; color: #f2c94c;
+    background: rgba(11, 14, 20, 0.6); padding: 4px 12px; border-radius: 6px;
   }
   #hud-vitals {
     position: absolute; left: 16px; bottom: 16px;
@@ -39,6 +45,7 @@
   #hud-health.low { color: #ff5a3c; }
   #hud-vitals .label { font-size: 11px; letter-spacing: 2px; color: #9aa0a6; }
   #hud-armor { font-size: 14px; color: #7fb3d9; font-weight: 700; }
+  #hud-heat { font-size: 13px; color: #ff8a5c; font-weight: 700; margin-top: 4px; }
   #hud-weapon {
     position: absolute; right: 16px; bottom: 16px; text-align: right;
     background: rgba(11, 14, 20, 0.72); border: 1px solid rgba(255,255,255,0.16);
@@ -62,7 +69,7 @@
     background: rgba(11, 14, 20, 0.6); padding: 8px 12px; border-radius: 6px; line-height: 1.6;
   }
   #hud-timer {
-    position: absolute; top: 108px; left: 50%; transform: translateX(-50%);
+    position: absolute; top: 142px; left: 50%; transform: translateX(-50%);
     background: rgba(11, 14, 20, 0.85); border: 1px solid #ff5a3c;
     padding: 6px 18px; border-radius: 6px; font-size: 26px; font-weight: 800;
     color: #ff5a3c; font-variant-numeric: tabular-nums;
@@ -99,15 +106,18 @@
     <span id="hud-cash">$250</span>
     <span id="hud-stars">☆☆☆☆☆</span>
     <span id="hud-clock">00:00</span>
+    <span id="hud-weather">10:00 · Day</span>
   </div>
   <div id="hud-objective">Meet Marisol at the docks.</div>
+  <div id="hud-arc">The Vega Jobs — mission 1 of 8 (arc 1 of 5)</div>
   <div id="hud-timer" class="hidden">100</div>
-  <div id="hud-help">WASD move / drive · Mouse drag camera<br>E enter car · Click shoot · R reload<br>Space jump · M sound · Esc pause<br>City limits are fenced — the hills are the edge</div>
+  <div id="hud-help">WASD move / drive · Mouse drag camera<br>E enter car · Click shoot · R reload<br>Space jump · M sound · Esc pause<br>City limits are fenced — the hills are the edge<br>North edge: Solmar International airport</div>
   <canvas id="minimap" width="190" height="190"></canvas>
   <div id="hud-vitals">
     <div class="label">HEALTH</div>
     <div id="hud-health">100</div>
     <div id="hud-armor">ARMOUR 0</div>
+    <div id="hud-heat">HEAT 0★ TOTAL</div>
   </div>
   <div id="hud-weapon">
     <div class="label" id="hud-weapon-name">PISTOL</div>
@@ -121,9 +131,10 @@
   <h1>SOLMAR</h1>
   <div class="tag">AN OPEN-WORLD CRIME GAME · SOLMAR BAY</div>
   <p>You are Rook, a driver-for-hire with a borrowed pistol and a debt to
-  pay. Marisol Vega runs this town from the docks, and she has five jobs
-  with your name on them. Steal cars, lose the police, run the drops —
-  and do not get caught.</p>
+  pay. Marisol Vega runs this town from the docks, and she has eight jobs
+  with your name on them — five in the city, then three more at Solmar
+  International airport, where the money leaves town and so, in the end,
+  do you. Steal cars, lose the police, run the drops — and do not get caught.</p>
   <div class="controls">
     <b>WASD</b> walk / drive &nbsp;·&nbsp; <b>Mouse drag</b> camera &nbsp;·&nbsp; <b>E</b> steal &amp; exit cars<br>
     <b>Click</b> shoot &nbsp;·&nbsp; <b>R</b> reload &nbsp;·&nbsp; <b>Space</b> jump &nbsp;·&nbsp; <b>Shift</b> run<br>
@@ -160,8 +171,9 @@
 
 <div id="screen-story" class="overlay hidden">
   <h1 style="font-size:44px">SOLMAR IS YOURS</h1>
-  <p>The Big Score is done. Marisol pays out, the heat fades, and the bay
-  is yours to drive. Free roam — the city stays open.</p>
+  <p>The Finale Escape is done. Rook leaves Solmar by boat, the money in
+  the hold and the city behind him — eight jobs, from the docks to the
+  runway to the marina. Free roam — the city stays open.</p>
   <p id="story-stats"></p>
   <button id="story-btn">KEEP DRIVING</button>
 </div>

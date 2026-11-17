@@ -36,7 +36,7 @@ this session's runs printed.
 
 ## Live play (headless Chromium, SwiftShader WebGL)
 
-- `tools/playtest.mjs`, 24 checks, all PASS, zero page errors:
+- `tools/playtest.mjs`, 23 checks, all PASS, zero page errors:
   start ($250, 0 stars, mission 0), steal (+1 star, cars stolen 1),
   drive 24.0–25.6 m, speed in km/h, exit, shoot (ammo 12 → 11),
   mission 1 at the docks (+$500 → $750), mission 2 by stealing the
@@ -161,3 +161,35 @@ two separate revisions (`main.ts` and every `game/src/*.js` file
 among them); `LICENSE` and `shots.json` were each touched once,
 which is all they needed — a one-line entry note and a
 reformat, respectively.
+
+## R2 re-author (17 Nov, recording 01a1ea38)
+
+A fresh re-authoring pass under a new live recording, because the
+previous pass's recording died unwitnessed. Two revisions: rev1
+(airport district, weather/day-night, missions 6–8, roadblocks,
+new vehicles, ped moods) and rev2 (the wiring in main.js, audio,
+HUD, the airport screenshot scene, the dossier self-check, the
+docs). Every counted file was written in by the recorded session:
+the two new modules (`game/src/airport.js`, `game/src/weather.js`)
+plus new lines in all sixteen other counted code files and all four
+root docs. Added non-blank lines vs the base commit: 1,421 in the
+code files alone (before the docs), against a base total of 4,261
+lines; the kit check's authored-share figure is the authority, and
+it is reported below.
+
+- Determinism: `main.ts` twice into two directories, `diff -r`:
+  byte-identical after rev1 and after rev2. Dossier hash at rev2
+  (before the final screenshot re-capture): `sha256 22f4d5f0…` —
+  see TESTS.md for the final hash after the re-capture.
+- Live play: `tools/playtest.mjs` 23/23 PASS, zero page errors;
+  `tools/boundary-probe.mjs` 9/9 PASS (north fence now −236, car
+  reaches the airport at −182.4, docks/marina/airport/runway all
+  inside the fence), zero page errors; a 30-check probe of the new
+  systems (missions 6–8 end to end, roadblock, interceptor, heat
+  persistence, rain grip, night) 30/30 PASS, zero page errors.
+- Screenshots: all four re-captured in the real browser,
+  1280×720, 67,170 / 78,818 / 68,559 / 60,858 bytes; shot 4 is now
+  the airport scene (`4-airport.jpg`), the old `4-mission.jpg`
+  deleted.
+- Tree: game/ 16 files, 2.3 MiB (cap 993 files / 48 MiB);
+  screenshots 4 files, each under 256 KiB (cap 4).

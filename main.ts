@@ -15,13 +15,18 @@
 // The game it copies is deterministic for a different reason: one
 // seeded RNG builds the city from ?seed=, and the fence and hills at
 // the city limit draw no randomness, so the edge never reshuffles the
-// world behind it.
+// world behind it. The weather and the airport draw only from forks of
+// that stream, and the rain schedule is fixed at build time, so the
+// sky and the taxiing plane are the same on every replay of the same
+// steps — the dossier read-back at the end of this file proves the
+// new modules were copied, and the replay check proves the game
+// still plays the same way twice.
 //
 // Serve it locally with `node serve.ts`, then open http://localhost:8080.
 // Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
 //   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
 
-import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDossier } from './vendor/makefun-game.ts';
@@ -43,7 +48,7 @@ if (existsSync(join(here, 'screenshots'))) {
 // are passed here so the dossier carries the same limits the scorer
 // enforces — the entry cannot pass the dossier and fail the gate on a
 // size the author never checked. Current headroom, measured at the
-// final verification: game/ is 14 files and about 2.2 MiB against a
+// R2 re-author verification: game/ is 16 files and about 2.3 MiB against a
 // 993-file / 48 MiB cap, screenshots/ is 4 files each under 256 KiB
 // against a cap of 4. The dossier itself is written by buildDossier
 // from the /output tree, so it always describes the files that were
@@ -58,3 +63,19 @@ writeFileSync(
     game_path_max_bytes: 1000,
   }),
 );
+
+// Read the dossier back and prove the R2 modules made it in: the
+// entry program is the one place that can fail loudly if a new file
+// was added to game/src but never copied, instead of letting the
+// scorer discover a missing import. The check is cheap (one parse)
+// and deterministic — it reads only what was just written — so it
+// costs the replay nothing and catches a packaging slip every run.
+{
+  const dossier = JSON.parse(readFileSync(join(out, 'dossier.json'), 'utf8'));
+  const dossierText = JSON.stringify(dossier);
+  for (const needed of ['game/src/airport.js', 'game/src/weather.js']) {
+    if (!dossierText.includes(needed)) {
+      throw new Error(`dossier is missing ${needed} — the airport/weather re-author did not copy`);
+    }
+  }
+}

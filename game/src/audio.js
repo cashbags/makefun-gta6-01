@@ -2,9 +2,12 @@
 // files, no network, nothing to load. Engine hum follows the car's speed,
 // the siren wails while the police are after the player, gunshots are
 // filtered noise bursts, a low thud marks the city-limit fence, and a small
-// sequenced bassline keeps the city humming. Audio starts on the first user
-// gesture (the title screen click); every call is guarded so a headless run
-// without audio never throws.
+// sequenced bassline keeps the city humming. Rain is a looping noise bed
+// whose gain follows the weather, thunder cracks when a rain window opens,
+// and a low jet rumble follows the player's distance to the airport
+// terminal. Audio starts on the first user gesture (the title screen
+// click); every call is guarded so a headless run without audio never
+// throws.
 export function createAudio() {
   let ctx = null;
   let master = null;
@@ -14,6 +17,9 @@ export function createAudio() {
   let sirenGain = null;
   let tensionOsc = null;
   let tensionGain = null;
+  let rainGain = null;
+  let jetOsc = null;
+  let jetGain = null;
   let musicTimer = null;
   let musicStep = 0;
   let muted = false;
@@ -66,6 +72,44 @@ export function createAudio() {
       tensionFilter.connect(tensionGain);
       tensionGain.connect(master);
       tensionOsc.start();
+      // The rain: a two-second loop of white noise through a lowpass,
+      // silent until the weather says otherwise. It is built once
+      // here and its gain follows weather.rain in update(), so rain
+      // fades in over the same ten seconds the sky does. The noise
+      // buffer is filled with Math.random, like every other noise
+      // burst in this file — audio is decoration, and no simulation
+      // state ever reads it.
+      const rainBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+      const rainData = rainBuf.getChannelData(0);
+      for (let i = 0; i < rainData.length; i += 1) rainData[i] = Math.random() * 2 - 1;
+      const rainSrc = ctx.createBufferSource();
+      rainSrc.buffer = rainBuf;
+      rainSrc.loop = true;
+      const rainFilter = ctx.createBiquadFilter();
+      rainFilter.type = 'lowpass';
+      rainFilter.frequency.value = 1200;
+      rainGain = ctx.createGain();
+      rainGain.gain.value = 0;
+      rainSrc.connect(rainFilter);
+      rainFilter.connect(rainGain);
+      rainGain.connect(master);
+      rainSrc.start();
+      // The airport: a low jet rumble, a sawtooth at 48 Hz through a
+      // 160 Hz lowpass, whose gain follows the player's distance to
+      // the terminal in update(). Near the forecourt it is a constant
+      // presence under the music; in the city it is silent.
+      jetOsc = ctx.createOscillator();
+      jetOsc.type = 'sawtooth';
+      jetOsc.frequency.value = 48;
+      jetGain = ctx.createGain();
+      jetGain.gain.value = 0;
+      const jetFilter = ctx.createBiquadFilter();
+      jetFilter.type = 'lowpass';
+      jetFilter.frequency.value = 160;
+      jetOsc.connect(jetFilter);
+      jetFilter.connect(jetGain);
+      jetGain.connect(master);
+      jetOsc.start();
       state.started = true;
       startMusic();
       return true;
@@ -190,6 +234,13 @@ export function createAudio() {
     thud() {
       noiseBurst(0.15, 180, 0.45);
     },
+    // Thunder: a long low burst when a rain window opens, with a
+    // delayed second rumble so the strike has a tail. Called once by
+    // main.js when the rain ramps past half strength.
+    thunder() {
+      noiseBurst(1.2, 120, 0.5);
+      setTimeout(() => noiseBurst(0.9, 90, 0.3), 350);
+    },
     pickup() {
       blip(660, 0.09, 0.2);
       setTimeout(() => blip(990, 0.12, 0.2), 90);
@@ -210,8 +261,11 @@ export function createAudio() {
     },
     // Called every frame: engine pitch follows speed, siren wails on a
     // two-tone cycle while wanted > 0 and police are near, and the
-    // tension drone fades in at three stars and out below it.
-    update(speed, wanted, policeNear) {
+    // tension drone fades in at three stars and out below it. The
+    // fourth argument is the environment `{ rain, airportDist }`:
+    // the rain loop follows the weather, and the jet rumble follows
+    // the player's distance to the terminal (silent past 150 m).
+    update(speed, wanted, policeNear, env) {
       if (!ctx || muted) return;
       try {
         const t = ctx.currentTime;
@@ -225,6 +279,15 @@ export function createAudio() {
           sirenGain.gain.setTargetAtTime(0, t, 0.2);
         }
         tensionGain.gain.setTargetAtTime(wanted >= 3 ? 0.05 : 0, t, 0.5);
+        if (rainGain) {
+          const rain = env?.rain ?? 0;
+          rainGain.gain.setTargetAtTime(rain * 0.12, t, 0.5);
+        }
+        if (jetGain) {
+          const dist = env?.airportDist ?? Infinity;
+          const jet = dist < 150 ? 0.06 * (1 - dist / 150) : 0;
+          jetGain.gain.setTargetAtTime(jet, t, 0.5);
+        }
       } catch { /* see above */ }
     },
   };
