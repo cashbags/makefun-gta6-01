@@ -3,6 +3,9 @@
 // procedural buildings (boxes with a shared canvas window texture, varied
 // heights and stucco colours), a park, a marina and a waterfront on the south
 // edge, docks on the west edge, and named landmarks the missions point at.
+// North of the grid, past the last street, is Solmar International
+// airport (airport.js): a terminal, a hangar, a control tower, fuel
+// tanks, a runway with a taxiing plane, and the shuttle for mission 6.
 // A fence and a ring of hills mark the city limit on the BOUNDS rectangle
 // from config.js, so the map ends at something visible instead of bare
 // ground; the water is the boundary on the south side.
@@ -11,6 +14,7 @@
 // the window texture is drawn on a canvas at build time.
 import * as THREE from 'three';
 import { CITY, BOUNDS } from './config.js';
+import { buildAirport } from './airport.js';
 
 const PALETTE = [0xe8b98a, 0xd98c6a, 0x7fb3a3, 0xe6d3a3, 0xc97b7b, 0x8fa8c8, 0xd9c9b8, 0xa8b89a, 0xe0a458, 0x9a8fb8];
 const ROOF = [0x5a4a3a, 0x6b5a4a, 0x4a4a52, 0x7a6a55];
@@ -471,10 +475,10 @@ export function createCity(rng) {
   for (const c of centres) {
     for (let s = -half + 22; s < half - 10; s += 44) {
       if (rng.chance(0.45)) {
-        parkedSpots.push({ x: c + CITY.road / 2 - 2.6, z: s, angle: rng.chance(0.5) ? 0 : Math.PI, kind: rng.pick(['sedan', 'taxi', 'van', 'sport', 'muscle', 'truck']) });
+        parkedSpots.push({ x: c + CITY.road / 2 - 2.6, z: s, angle: rng.chance(0.5) ? 0 : Math.PI, kind: rng.pick(['sedan', 'taxi', 'van', 'sport', 'muscle', 'truck', 'bus']) });
       }
       if (rng.chance(0.35)) {
-        parkedSpots.push({ x: c - CITY.road / 2 + 2.6, z: s + 18, angle: rng.chance(0.5) ? 0 : Math.PI, kind: rng.pick(['sedan', 'taxi', 'sport', 'muscle']) });
+        parkedSpots.push({ x: c - CITY.road / 2 + 2.6, z: s + 18, angle: rng.chance(0.5) ? 0 : Math.PI, kind: rng.pick(['sedan', 'taxi', 'sport', 'muscle', 'limo']) });
       }
     }
   }
@@ -501,6 +505,15 @@ export function createCity(rng) {
       group.add(cloud);
     }
   }
+
+  // Solmar International, on the north strip: built last, from a fork,
+  // so the airport's draws never touch the city's stream and the city
+  // above builds exactly as it did before the airport existed. The
+  // airport appends its own colliders, parked spots, ped spots and
+  // mission markers to the same arrays, so the fence (drawn on the
+  // extended BOUNDS rectangle) already stands north of it and the
+  // missions can point at the terminal, the hangar and the runway.
+  buildAirport(rng.fork(), group, colliders, parkedSpots, pedSpots, markers);
 
   return { group, colliders, parkedSpots, pedSpots, markers, centres };
 }

@@ -5,7 +5,11 @@
 // keeps going or turns onto the crossing street. The player's car uses a
 // simple arcade model (accelerate, brake/reverse, steering that bites more
 // at low speed) and stops dead against buildings, which the collision pass
-// in city.js enforces.
+// in city.js enforces. Eleven kinds now: the original seven plus a bus,
+// an airport shuttle, a police interceptor and a limo (see KINDS), and
+// the rain grip from weather.js scales the player's model. This module
+// also builds police roadblocks: striped barriers that are real
+// colliders while they stand and leave nothing behind when cleared.
 import * as THREE from 'three';
 import { CITY, CAR } from './config.js';
 import { resolveCollisions } from './city.js';
@@ -24,6 +28,20 @@ const KINDS = {
   // every other kind; only their proportions and extras differ.
   truck: { color: 0x5a7a4a, w: 2.3, l: 6.0, h: 1.6, cabin: 0.9, speed: 8 },
   muscle: { color: 0x7a2e8a, w: 2.0, l: 4.5, h: 0.7, cabin: 0.55, speed: 14 },
+  // The Airport Arc kinds. A bus is the longest vehicle in the game —
+  // nine metres of moving wall, slower than a truck, and the reason
+  // the north streets feel busy at rush hour. A shuttle is the
+  // airport's own bus: white with a blue stripe and a roof sign, the
+  // mission car for the Runway Job. An interceptor is the PD's fast
+  // answer at four stars and up: black, faster than a patrol car
+  // (speed 18 against the patrol car's 16), with a red-and-blue bar
+  // and a spoiler. A limo is a stretched sedan for the airport
+  // forecourt and the plaza: long, slow to turn, and the second-
+  // slowest thing a player can steal after a truck.
+  bus: { color: 0x3a7a5a, w: 2.4, l: 9.0, h: 2.2, cabin: 1.0, speed: 8 },
+  shuttle: { color: 0xe8e8e8, w: 2.3, l: 6.5, h: 2.0, cabin: 1.0, speed: 10 },
+  interceptor: { color: 0x14161a, w: 2.0, l: 4.6, h: 0.72, cabin: 0.55, speed: 18 },
+  limo: { color: 0x1a1a1a, w: 2.0, l: 6.4, h: 0.8, cabin: 0.6, speed: 12 },
 };
 
 export function buildCarMesh(kind) {
@@ -82,6 +100,52 @@ export function buildCarMesh(kind) {
     spoiler.scale.set(spec.w * 0.9, 0.12, 0.3);
     spoiler.position.set(0, 0.55 + spec.h + 0.3, -spec.l * 0.48);
     group.add(spoiler);
+  }
+  if (kind === 'bus' || kind === 'shuttle') {
+    // A long window band down the side and a roof sign: the two
+    // details that separate a bus from a tall van at street distance.
+    // The shuttle's sign says AIRPORT by colour (blue on white) rather
+    // than by text — the game has no text in 3D.
+    const band = new THREE.Mesh(box, glassMat);
+    band.scale.set(spec.w + 0.04, 0.5, spec.l * 0.7);
+    band.position.set(0, 0.55 + spec.h + spec.cabin * 0.4, 0);
+    group.add(band);
+    const sign = new THREE.Mesh(box, new THREE.MeshBasicMaterial({ color: kind === 'shuttle' ? 0x2e5f8a : 0xf2c94c }));
+    sign.scale.set(1.6, 0.3, 0.6);
+    sign.position.set(0, 0.55 + spec.h + spec.cabin + 0.12, 0);
+    group.add(sign);
+    if (kind === 'shuttle') {
+      const stripe = new THREE.Mesh(box, new THREE.MeshBasicMaterial({ color: 0x2e5f8a }));
+      stripe.scale.set(spec.w + 0.02, 0.28, spec.l * 0.8);
+      stripe.position.set(0, 0.55 + spec.h * 0.45, 0);
+      group.add(stripe);
+    }
+  }
+  if (kind === 'interceptor') {
+    // A red-and-blue light bar and a rear spoiler: the interceptor is
+    // a patrol car in black, and the bar is how the player tells it
+    // apart at four stars before it outruns them.
+    const barR = new THREE.Mesh(box, new THREE.MeshBasicMaterial({ color: 0xff3b30 }));
+    barR.scale.set(spec.w * 0.25, 0.22, 0.5);
+    barR.position.set(-spec.w * 0.13, 0.55 + spec.h + spec.cabin + 0.12, 0);
+    group.add(barR);
+    const barB = new THREE.Mesh(box, new THREE.MeshBasicMaterial({ color: 0x2244ff }));
+    barB.scale.set(spec.w * 0.25, 0.22, 0.5);
+    barB.position.set(spec.w * 0.13, 0.55 + spec.h + spec.cabin + 0.12, 0);
+    group.add(barB);
+    const spoiler = new THREE.Mesh(box, bodyMat);
+    spoiler.scale.set(spec.w * 0.9, 0.12, 0.3);
+    spoiler.position.set(0, 0.55 + spec.h + 0.3, -spec.l * 0.48);
+    group.add(spoiler);
+  }
+  if (kind === 'limo') {
+    // A divider band behind the driver and a long roof: the limo is a
+    // sedan stretched to 6.4 m, and the band is what says "not a
+    // sedan" from the side.
+    const divider = new THREE.Mesh(box, glassMat);
+    divider.scale.set(spec.w * 0.86, 0.5, 0.12);
+    divider.position.set(0, 0.55 + spec.h + spec.cabin * 0.5, spec.l * 0.1);
+    group.add(divider);
   }
   const headMat = new THREE.MeshBasicMaterial({ color: 0xfff2b0 });
   for (const sx of [-1, 1]) {
@@ -146,7 +210,17 @@ export function createTraffic(city, rng, count, scene) {
     const x = pick.road === 'x' ? along : pick.line + lane;
     const z = pick.road === 'x' ? pick.line + lane : along;
     const angle = pick.road === 'x' ? (pick.dir > 0 ? Math.PI / 2 : -Math.PI / 2) : (pick.dir > 0 ? 0 : Math.PI);
-    const car = createCar(rng.pick(['sedan', 'taxi', 'van', 'sedan', 'truck', 'muscle']), x, z, angle);
+    const car = createCar(
+      // Weighted traffic: sedans and taxis dominate, vans and trucks
+      // are common, muscle is rarer, and a bus or a limo shows up
+      // about as often as a second taxi — enough that the north
+      // streets feel busy without the city turning into a bus depot.
+      rng.pickWeighted(
+        ['sedan', 'taxi', 'van', 'sedan', 'truck', 'muscle', 'bus', 'limo'],
+        [4, 3, 2, 1, 2, 2, 1, 1],
+      ),
+      x, z, angle,
+    );
     car.road = pick.road;
     car.dir = pick.dir;
     car.lane = lane;
@@ -223,20 +297,90 @@ export function stepTraffic(cars, city, rng, dt, others) {
 
 // --- Player driving ---
 
-export function stepPlayerCar(car, input, dt, city) {
+// --- Player driving ---
+
+// A kind's top traffic speed, for the police chase: patrol cars chase
+// at 19 and interceptors at 22, both faster than any civilian kind's
+// cruise speed, so the chase is won by turning, not by outrunning
+// them on a straight road.
+export function chaseSpeed(kind) {
+  if (kind === 'interceptor') return 22;
+  if (kind === 'police') return 19;
+  return (KINDS[kind] ?? KINDS.sedan).speed;
+}
+
+// --- Police roadblocks ---
+// A roadblock is three striped barriers across a road plus the two
+// patrol cars that stand behind them, built by main.js when the heat
+// hits three stars. The barriers are real colliders in the city's
+// list, so ramming one is a crash like any other; clearRoadblock
+// removes the meshes and the colliders together, so a cleared
+// roadblock leaves nothing invisible behind. The barrier meshes are
+// red-and-white striped by alternating boxes, because the game has
+// no stripe texture.
+export function createRoadblock(scene, city, x, z, angle) {
+  const group = new THREE.Group();
+  const box = new THREE.BoxGeometry(1, 1, 1);
+  const red = new THREE.MeshLambertMaterial({ color: 0xc23b2e });
+  const white = new THREE.MeshLambertMaterial({ color: 0xf2f2e8 });
+  const colliders = [];
+  // Three barriers across the road, 3.4 m apart, each a 3.6 m striped
+  // board on two legs. The road is 14 m wide; the barriers cover the
+  // middle 10 m and leave a gap at each kerb the player can thread —
+  // a roadblock is a problem to drive around, not a wall.
+  for (let i = -1; i <= 1; i += 1) {
+    const bx = x + Math.cos(angle) * i * 3.4;
+    const bz = z - Math.sin(angle) * i * 3.4;
+    for (let s = -1; s <= 1; s += 1) {
+      const seg = new THREE.Mesh(box, s === 0 ? white : red);
+      seg.scale.set(1.2, 0.7, 0.18);
+      seg.position.set(bx + Math.sin(angle) * s * 1.2, 0.9, bz + Math.cos(angle) * s * 1.2);
+      seg.rotation.y = angle;
+      group.add(seg);
+    }
+    for (const sx of [-1.4, 1.4]) {
+      const leg = new THREE.Mesh(box, red);
+      leg.scale.set(0.18, 0.9, 0.18);
+      leg.position.set(bx + Math.cos(angle) * sx, 0.45, bz - Math.sin(angle) * sx);
+      group.add(leg);
+    }
+    const c = { x: bx, z: bz, hx: 1.9, hz: 1.9 };
+    colliders.push(c);
+    city.colliders.push(c);
+  }
+  group.position.set(0, 0, 0);
+  scene.add(group);
+  return { group, colliders };
+}
+
+export function clearRoadblock(scene, city, rb) {
+  if (!rb) return;
+  scene.remove(rb.group);
+  for (const c of rb.colliders) {
+    const i = city.colliders.indexOf(c);
+    if (i >= 0) city.colliders.splice(i, 1);
+  }
+}
+
+export function stepPlayerCar(car, input, dt, city, grip = 1) {
   const spec = KINDS[car.kind];
   const forward = input.forward ? 1 : 0;
   const back = input.back ? 1 : 0;
-  if (forward) car.speed += CAR.accel * dt;
+  // Grip scales the whole model: in the rain (grip 0.75) the car
+  // accelerates slower, brakes longer, and steers less, so a wet
+  // chase really does slide wider than a dry one. The grip comes
+  // from the weather system; dry weather passes 1 and the model is
+  // exactly the one the earlier revisions tuned.
+  if (forward) car.speed += CAR.accel * grip * dt;
   else if (back) {
-    if (car.speed > 0.5) car.speed -= CAR.brake * dt;
-    else car.speed -= CAR.reverseAccel * dt;
+    if (car.speed > 0.5) car.speed -= CAR.brake * grip * dt;
+    else car.speed -= CAR.reverseAccel * grip * dt;
   } else {
-    car.speed -= Math.sign(car.speed) * Math.min(Math.abs(car.speed), 8 * dt);
+    car.speed -= Math.sign(car.speed) * Math.min(Math.abs(car.speed), 8 * grip * dt);
   }
-  car.speed = Math.max(-CAR.maxReverse, Math.min(spec.speed * 2.1, car.speed));
+  car.speed = Math.max(-CAR.maxReverse, Math.min(spec.speed * 2.1 * (0.75 + 0.25 * grip), car.speed));
   const steerTarget = (input.left ? 1 : 0) - (input.right ? 1 : 0);
-  const steerSpeed = CAR.steer * Math.max(0.35, 1 - Math.abs(car.speed) / (spec.speed * 2.4));
+  const steerSpeed = CAR.steer * (0.7 + 0.3 * grip) * Math.max(0.35, 1 - Math.abs(car.speed) / (spec.speed * 2.4));
   car.steer += (steerTarget - car.steer) * Math.min(1, dt * 8);
   // Turn rate scales with speed and reverses when reversing.
   car.angle += car.steer * steerSpeed * dt * Math.min(1, Math.abs(car.speed) / 8) * Math.sign(car.speed);

@@ -1,6 +1,7 @@
-// missions.js — SOLMAR's story: five jobs for the fixer Marisol Vega, in
-// order, each with a waypoint, an objective line, and a payout. The mission
-// state machine is deliberately small: a mission is a list of stages, each
+// missions.js — SOLMAR's story: eight jobs for the fixer Marisol Vega, in
+// order, each with a waypoint, an objective line, and a payout. The first
+// five are the Vega Jobs in the city; the last three are the Airport Arc
+// at Solmar International. The mission state machine is deliberately small: a mission is a list of stages, each
 // stage waits for the player to reach a marker (or, for the escape jobs, to
 // survive until a condition clears), and finishing a stage advances the
 // story. The HUD reads currentObjective() and currentWaypoint() every frame;
@@ -11,17 +12,26 @@ import { MISSIONS } from './config.js';
 // the player meets them, so each job teaches one verb and the finale
 // combines them instead of introducing a new rule:
 //  reach  — arrive within `radius` of the named marker
-//  steal  — enter the mission's target car (markers.sportscar)
+//  steal  — enter the mission's target car (markers.sportscar,
+//           or the shuttle at the airport for the Runway Job)
 //  timed  — reach the marker before `seconds` run out
 //  evade  — survive until wanted stars fall to 0 (then reach the marker)
-//  grab   — reach the vault, then escape to the marker with wanted >= 3
+//  grab   — reach the grab point (`grabAt`, default the vault), then
+//           escape to the marker with wanted >= 3. The Big Score
+//           grabs the vault cash; the Arms Deal grabs the hangar crate.
 // The markers are all places the player has already seen (docks, park,
 // garage, flat, bank, marina), never a new corner of the map: a mission
-// tests driving and evasion, not map-reading. The docks and marina
-// markers sit just outside the street grid but inside the BOUNDS fence
-// (docks x = -161, marina z = 159), so the fence never blocks a job —
-// that placement is load-bearing, not incidental, and the boundary
-// probe in tools/ asserts it on every verification run.
+// tests driving and evasion, not map-reading. The Airport Arc is the
+// one exception, and it earns it: missions 6–8 introduce the airport
+// one place at a time (terminal, then hangar, then runway), each stage
+// pointing at a place the previous stage already showed the player.
+// The docks and marina markers sit just outside the street grid but
+// inside the BOUNDS fence (docks x = -161, marina z = 159), so the
+// fence never blocks a job — that placement is load-bearing, not
+// incidental, and the boundary probe in tools/ asserts it on every
+// verification run. The airport markers sit the same way inside the
+// extended north fence (terminal z = -182, hangar z = -178, runway
+// z = -218, all inside BOUNDS.zMin = -236).
 const STORY = [
   // The five jobs, in the order the player meets them. Each job is one
   // idea in one sentence, and the stage kinds are the vocabulary for
@@ -65,6 +75,40 @@ const STORY = [
     stages: [
       { kind: 'reach', marker: 'vault', radius: 6, text: 'Reach the Solmar Trust Bank' },
       { kind: 'grab', marker: 'marina', radius: 7, text: 'Grab the cash and escape to the marina' },
+    ],
+  },
+  // The Airport Arc (missions 6–8): the story leaves the city grid for
+  // Solmar International, north of the last street. No new stage kinds
+  // are introduced — the arc recombines the ones the player already
+  // knows (reach, steal, timed, evade, grab) on new ground, with the
+  // grab generalised by `grabAt` so the same stage can take the vault
+  // cash or the hangar crate. The arc's through-line is Marisol
+  // cashing out: the runway job moves her money, the arms deal arms
+  // her crew, and the finale gets Rook out of Solmar alive.
+  {
+    id: 'runway', title: 'Runway Job',
+    intro: 'Marisol is moving money out through the airport. Get to Solmar International, take the shuttle, and drive it to the docks — the buyers wait there, and they do not wait long.',
+    stages: [
+      { kind: 'reach', marker: 'airport', radius: 8, text: 'Reach Solmar International — the terminal on the north edge' },
+      { kind: 'steal', marker: 'shuttle', radius: 6, text: 'Take the airport shuttle at the forecourt (press E)' },
+      { kind: 'timed', marker: 'docks', radius: 6, seconds: 120, text: 'Drive the shuttle to the docks — beat the clock' },
+    ],
+  },
+  {
+    id: 'deal', title: 'The Arms Deal',
+    intro: 'The buyers are waiting at the north hangar with a crate of hardware and no patience. Take the crate, then lose them and get to the flat.',
+    stages: [
+      { kind: 'reach', marker: 'hangar', radius: 7, text: 'Meet the buyers at the north hangar' },
+      { kind: 'grab', marker: 'safehouse', radius: 6, grabAt: 'hangar', text: 'Take the crate and escape to the safehouse' },
+    ],
+  },
+  {
+    id: 'finale', title: 'The Finale Escape',
+    intro: 'It all comes due at once. The plane leaves in 90 seconds, the whole PD is on the access road, and the only way out of Solmar is the marina. Run.',
+    stages: [
+      { kind: 'timed', marker: 'runway', radius: 8, seconds: 90, text: 'Reach the runway — the plane leaves in 90 seconds' },
+      { kind: 'evade', marker: 'safehouse', radius: 6, text: 'Lose the police, then reach the safehouse' },
+      { kind: 'reach', marker: 'marina', radius: 7, text: 'Reach the marina — Rook leaves Solmar by boat' },
     ],
   },
 ];
@@ -140,14 +184,23 @@ export function stepMissions(m, ctx) {
     // the walk to the safehouse. Set wanted to 0 externally to test it.
     if (ctx.wanted === 0) advance = true;
   } else if (stage.kind === 'grab') {
-    // The grab is a two-part stage: first reach the vault to take the cash
-    // (which trips the alarm), then escape to the stage marker.
-    const vault = m.markers.vault;
-    const vaultDist = vault ? Math.hypot(ctx.x - vault.x, ctx.z - vault.z) : Infinity;
+    // The grab is a two-part stage: first reach the grab point to take
+    // the goods (which trips the alarm), then escape to the stage
+    // marker. `grabAt` names the grab point: 'vault' for the Big Score,
+    // 'hangar' for the Arms Deal. The alarm text and the wanted jump
+    // travel with the event, so main.js never has to know which job
+    // is running.
+    const grabAt = stage.grabAt ?? 'vault';
+    const grabPoint = m.markers[grabAt];
+    const grabDist = grabPoint ? Math.hypot(ctx.x - grabPoint.x, ctx.z - grabPoint.z) : Infinity;
     if (!m.grabbed) {
-      if (vaultDist <= 6) {
+      if (grabDist <= 6) {
         m.grabbed = true;
-        events.push({ type: 'grabbed', text: 'Cash grabbed! Get to the marina — the alarm is up.' });
+        if (grabAt === 'hangar') {
+          events.push({ type: 'grabbed', text: 'Crate secured! The buyers are coming — get to the flat.', alarm: 'The deal went loud — the buyers called it in' });
+        } else {
+          events.push({ type: 'grabbed', text: 'Cash grabbed! Get to the marina — the alarm is up.', alarm: 'The bank alarm is screaming' });
+        }
       }
     } else if (dist <= stage.radius) {
       advance = true;
@@ -166,7 +219,15 @@ export function stepMissions(m, ctx) {
     if (m.index >= STORY.length) {
       m.storyComplete = true;
       m.done = true;
-      events.push({ type: 'story', text: 'The Big Score is done. Solmar Bay is yours, Rook.' });
+      // The story ends twice, in a sense: the Big Score closes the
+      // first arc ("Solmar is yours"), and the Finale Escape closes
+      // the whole game — Rook leaves by boat, so the line says so.
+      events.push({
+        type: 'story',
+        text: def.id === 'finale'
+          ? 'The Finale Escape is done. Rook leaves Solmar by boat, the money in the hold and the city behind him.'
+          : 'The Big Score is done. Solmar Bay is yours, Rook.',
+      });
     } else {
       events.push({ type: 'stage', text: STORY[m.index].intro });
     }
@@ -177,10 +238,31 @@ export function stepMissions(m, ctx) {
 }
 
 // The Heat mission needs the player hot when it starts: called by main.js
-// when the mission begins.
+// when the mission begins. The finale starts hotter still — four stars
+// the moment it opens, with interceptors and roadblocks already in the
+// deck — because the finale is an escape, not a job that goes wrong
+// halfway through. The arms deal starts cold; the grab trips the alarm.
 export function onMissionStart(m) {
   const def = STORY[m.index];
   if (def.id === 'heat') return { wanted: 3 };
+  if (def.id === 'finale') return { wanted: 4 };
   if (def.id === 'score') return { wanted: 0 };
   return { wanted: 0 };
+}
+
+// Which arc the player is in, for the HUD: the first five jobs are
+// "The Vega Jobs", the last three are "The Airport Arc". The HUD
+// shows the arc, the mission number out of eight, and the arc's
+// progress, so the player always knows how much story is left.
+export function storyArc(m) {
+  const total = STORY.length;
+  const arc = m.index < 5 ? 'The Vega Jobs' : 'The Airport Arc';
+  const arcIndex = m.index < 5 ? m.index + 1 : m.index - 4;
+  const arcTotal = m.index < 5 ? 5 : 3;
+  return {
+    arc,
+    text: `${arc} — mission ${m.index + 1} of ${total} (arc ${arcIndex} of ${arcTotal})`,
+    mission: m.index + 1,
+    total,
+  };
 }

@@ -65,5 +65,51 @@ export function createRandom(seed) {
       }
       return out;
     },
+    // A standard-normal draw (mean 0, spread 1) by Box–Muller: two
+    // uniform draws in, one bell-shaped number out. It consumes two
+    // draws, so it disturbs the caller's order exactly like any other
+    // draw — fork first when the order after it must stay put. Used
+    // for anything that should cluster around a centre with a tail:
+    // building heights, crowd pauses, rain-window lengths.
+    gaussian() {
+      let u = 0;
+      let v = 0;
+      while (u === 0) u = next();
+      while (v === 0) v = next();
+      return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+    },
+    // One element of a list, weighted: weights[i] is the relative
+    // chance of list[i]. The weights need not sum to 1; they must all
+    // be non-negative and at least one must be positive. One draw,
+    // so the cost is the same as pick() — the rarity lives in the
+    // weights, not in extra draws. Traffic uses it for rare kinds
+    // (a bus or a limo shows up about as often as a second taxi).
+    pickWeighted(list, weights) {
+      let total = 0;
+      for (const w of weights) total += w;
+      let r = next() * total;
+      for (let i = 0; i < list.length; i += 1) {
+        r -= weights[i];
+        if (r <= 0) return list[i];
+      }
+      return list[list.length - 1];
+    },
+    // A schedule of `count` start times: the first no earlier than
+    // `first`, each lasting a draw inside [durMin, durMax], each gap
+    // a draw inside [gapMin, gapMax]. Returns [{start, dur}] sorted
+    // by start, deterministic per stream. Weather uses it for the
+    // rain windows: the schedule is fixed at build time, so the same
+    // seed always rains at the same times and a replay never has to
+    // decide when the rain starts.
+    sampleSchedule(count, first, durMin, durMax, gapMin, gapMax) {
+      const out = [];
+      let t = first + next() * (gapMax - gapMin);
+      for (let i = 0; i < count; i += 1) {
+        const dur = durMin + next() * (durMax - durMin);
+        out.push({ start: t, dur });
+        t += dur + gapMin + next() * (gapMax - gapMin);
+      }
+      return out;
+    },
   };
 }
