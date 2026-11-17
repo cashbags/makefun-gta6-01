@@ -1,0 +1,63 @@
+// config.js — SOLMAR's tuning constants in one place.
+// The city is a grid: BLOCKS x BLOCKS blocks, each BLOCK metres wide, with a
+// ROAD-wide street between neighbours. Everything else (speeds, wanted
+// levels, mission rewards, timers) is tuned so a mission takes a couple of
+// minutes and a full story run about fifteen.
+export const STEP = 1 / 60;
+export const CITY = {
+  blocks: 5, // blocks per side
+  block: 46, // metres of buildable ground per block
+  road: 14, // metres of street between blocks
+  // Derived half-size of the whole city, used for clamping and the minimap.
+  get half() {
+    return (this.blocks * (this.block + this.road) + this.road) / 2;
+  },
+  get pitch() {
+    return this.block + this.road;
+  },
+};
+export const PLAYER = {
+  walkSpeed: 5.2,
+  runSpeed: 8.5,
+  accel: 30,
+  jumpSpeed: 7.5,
+  radius: 0.55,
+  maxHealth: 100,
+  maxArmor: 100,
+};
+export const CAR = {
+  accel: 16,
+  brake: 30,
+  reverseAccel: 9,
+  maxSpeed: 34,
+  maxReverse: 10,
+  steer: 1.9,
+  grip: 6.5,
+};
+export const WANTED = {
+  maxStars: 5,
+  // Seconds of no crime and no cop in sight before one star falls off.
+  decaySeconds: 25,
+  // How far away a cop still counts as "seeing" the player.
+  sightRange: 55,
+  // Busted when a cop stays this close, on foot, this long.
+  bustRange: 2.4,
+  bustSeconds: 2.0,
+};
+export const COMBAT = {
+  pistolDamage: 34,
+  pistolRange: 70,
+  magSize: 12,
+  reloadSeconds: 1.1,
+  fireSeconds: 0.22,
+  copHealth: 60,
+  pedHealth: 30,
+};
+export const MISSIONS = [
+  { id: 'fixer', name: 'The Fixer', reward: 500 },
+  { id: 'wheels', name: 'Hot Wheels', reward: 1200 },
+  { id: 'drop', name: 'The Drop', reward: 1500 },
+  { id: 'heat', name: 'Heat', reward: 2000 },
+  { id: 'score', name: 'The Big Score', reward: 5000 },
+];
+export const SAVE_KEY = 'solmar-save-v1';
