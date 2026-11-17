@@ -68,7 +68,8 @@ createServer((request, response) => {
     // module included. A walk, not a cached number, so the answer is
     // never stale after an edit. The systems list names the side
     // systems the tree carries, so a probe can tell at a glance
-    // whether the server is serving the build it expects.
+    // whether the server is serving the build it expects: cab work
+    // from rev A, hidden packages from rev B.
     let files = 0;
     let bytes = 0;
     const walk = (dir) => {
@@ -84,7 +85,7 @@ createServer((request, response) => {
     try {
       walk(root);
       response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
-      response.end(JSON.stringify({ ok: true, files, bytes, systems: ['taxi'] }));
+      response.end(JSON.stringify({ ok: true, files, bytes, systems: ['taxi', 'packages'] }));
     } catch {
       response.writeHead(500, { 'content-type': 'application/json; charset=utf-8' });
       response.end(JSON.stringify({ ok: false, files: 0, bytes: 0, systems: [] }));

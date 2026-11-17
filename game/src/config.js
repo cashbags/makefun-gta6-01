@@ -161,6 +161,22 @@ export const TAXI = {
   ratingStepDown: 0.3,
   ratingFailPenalty: 0.5,
 };
+// Hidden packages (city.js places them, main.js collects them): twelve
+// gold cases hidden across Solmar Bay — one per landmark, one at the
+// docks, one on the runway, one at the airport taxi stand. Each is
+// worth $150 on foot, and finding all twelve pays a $500 completion
+// bonus on top, so the set is worth $2,300 to a player who walks the
+// whole map. The spots are fixed offsets from the mission markers
+// (see PACKAGE_SPOTS in city.js), never drawn from the RNG, so the
+// same seed always hides them in the same places and a replay never
+// reshuffles the hunt. Only the player on foot can pick one up —
+// driving over a case does not count, because the hunt is a walk.
+export const PACKAGES = {
+  count: 12,
+  value: 150,
+  bonus: 500,
+  pickupRadius: 2,
+};
 export const MISSIONS = [
   { id: 'fixer', name: 'The Fixer', reward: 500 },
   { id: 'wheels', name: 'Hot Wheels', reward: 1200 },

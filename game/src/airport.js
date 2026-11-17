@@ -47,7 +47,21 @@ export const AIRPORT = {
   // it back west, forever, at 6 m/s. The position is a triangle wave of
   // w.time, so it is deterministic and needs no state of its own.
   taxi: { x0: -60, x1: 100, z: -218, speed: 6 },
+  // The taxi stand: the kerb on the forecourt where the yellow cabs
+  // wait for airport fares, east of the terminal doors and clear of
+  // the shuttle stop (34, -184) and the crowd's walking box
+  // (x 0..44, z -196..-178). It is not a mission marker — no job
+  // points at it — but it is where an airport fare is picked up and
+  // where one of the twelve hidden packages sits, so the forecourt
+  // is a place to work as well as a place to arrive.
+  taxiStand: { x: 40, z: -180 },
 };
+
+// The stand as a fresh point, so a caller that moves it (a package
+// offset, a fare pickup) never moves the constant for everyone else.
+export function taxiStandSpot() {
+  return { x: AIRPORT.taxiStand.x, z: AIRPORT.taxiStand.z };
+}
 
 // A parked or taxiing plane, from boxes and one cylinder: fuselage,
 // nose cone, wings, tail fin, two engines, nav lights. Big enough to

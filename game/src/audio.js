@@ -253,6 +253,15 @@ export function createAudio() {
       blip(880, 0.1, 0.22);
       setTimeout(() => blip(1318, 0.16, 0.22), 110);
     },
+    // The hidden-package chime: a bright three-note arpeggio, higher
+    // than the fare ding and longer than the pickup blip, so a case
+    // sounds like a find and not like money or an item. Same blip
+    // helper, same guard — audio is decoration, never a crash.
+    chime() {
+      blip(1046, 0.1, 0.2);
+      setTimeout(() => blip(1318, 0.1, 0.2), 90);
+      setTimeout(() => blip(1568, 0.16, 0.2), 180);
+    },
     mission() {
       blip(523, 0.12, 0.22);
       setTimeout(() => blip(659, 0.12, 0.22), 120);

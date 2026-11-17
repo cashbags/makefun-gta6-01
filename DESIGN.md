@@ -422,6 +422,42 @@ not walking, never fleeing), they board by leaving the street, and
 they walk away when the fare is abandoned — the job is visible in
 the world, not just in the HUD.
 
+## Hidden packages: twelve gold cases (`city.js`, `main.js`)
+
+Twelve gold cases are hidden across Solmar Bay — one per landmark,
+one at the docks, one out on the runway, one at the airport taxi
+stand. Each is worth $150, and finding all twelve pays a $500
+completion bonus on top, so the set is worth $2,300 to a player who
+walks the whole map. The cases are the game's reason to walk: the
+missions are drives, the fares are drives, and the hunt is the one
+system that pays for being on foot, because only the player on foot
+can pick one up — driving over a case does not count.
+
+The placement is a table, not a draw. `PACKAGE_SPOTS` in `city.js`
+holds twelve `[marker, dx, dz]` rows, fixed offsets from the
+mission markers, chosen by hand against the map: each case sits a
+few metres off its marker's front, clear of the building colliders
+and on walkable ground, never inside a wall and never in the water.
+The airport case sits at the taxi stand — the kerb where the cabs
+wait — rather than at the terminal doors, because the stand is the
+working corner of the forecourt. Nothing about the hunt reads the
+RNG, so the same seed always hides the cases in the same places and
+a replay never reshuffles them; `createCity` throws if the table
+does not hold exactly `PACKAGES.count` rows, and `main.ts` counts
+the rows again at build time, so a table edit that drops a case
+fails loudly instead of silently shortening the hunt.
+
+In play, a case spins and bobs like a pickup, pays with its own
+chime (a three-note arpeggio, higher than the fare ding), and is
+gone for the save once found. The save stores the indices of the
+found cases, so a reload hides exactly the ones already collected
+and keeps the rest on the map. The HUD carries the count in the
+vitals block (`PACKAGES 3/12`, always shown), and the minimap draws
+the uncollected cases as gold dots, so the hunt is visible on the
+map and the player can plan the walk instead of wandering. The
+story screen closes with a hunt line next to the cab-work line —
+how many were found, and how many are still hidden.
+
 ## Known limits and follow-ups
 
 What the game does not do, stated plainly so the next edit starts

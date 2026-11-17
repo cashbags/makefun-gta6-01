@@ -38,6 +38,7 @@ times.
 | Driving | Arcade model: accelerate, brake/reverse, steering that bites harder at low speed; 11 car kinds (sedan, taxi, van, sport, muscle, truck, police, bus, shuttle, interceptor, limo) with their own speed and handling; rain cuts grip to 0.75 |
 | Stealing | E near any parked or traffic car takes it (+1 wanted star) |
 | Cab work | Get in a yellow taxi: a fare is offered between two known stops, a passenger waits at the kerb, drive them there before the timer runs out — $12 base + $0.35/m, rain surge 1.25×, tip up to half the fare, driver rating 1–5★ that persists in the save |
+| Hidden packages | 12 gold cases hidden across the city (one per landmark, docks, runway, airport taxi stand) — $150 each on foot, $500 bonus for the full set; count in the HUD, gold dots on the minimap, found cases persist in the save |
 | Wanted | 0–5 stars, decay after 25 quiet seconds, foot cops + patrol cars spawn to match, interceptors at 4 stars, roadblocks across the road at 3 stars while driving, busted/wasted respawn at the hospital with a $300 fine; the wanted level and the lifetime heat total persist across save/load |
 | Missions | Eight jobs for the fixer Marisol Vega — walk, steal, timed delivery, evade, grab-and-escape, then the Airport Arc: the Runway Job, the Arms Deal, the Finale Escape — $500 to $12,000 a job |
 | Combat | Hitscan pistol, 12-round magazine, 1.1 s reload, 34 damage; armour absorbs 60%; health/ammo pickups respawn every 30 s |

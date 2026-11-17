@@ -379,3 +379,28 @@ verifier can re-run them by hand in the browser console instead:
   pickup then the record. Screenshots NOT re-captured: no visual
   changed (the taxi markers and HUD line only appear during a live
   shift, and no staged scene starts one).
+
+- R3 rev B — hidden packages (17 Nov, recording 01a1ea4f, same
+  session as rev A): twelve gold cases at fixed offsets from the
+  mission markers (`PACKAGE_SPOTS` in `city.js`, no RNG) plus new
+  lines in the four files rev A had not touched (city.js,
+  airport.js with the taxi-stand kerb, shots.js with a `?shot=taxi`
+  staging, shots.json with an airport-scene note) and re-touches
+  everywhere the hunt surfaces; 304 added / 30 removed lines vs
+  rev A (294 non-blank added). `main.ts` twice → `diff -r` clean
+  (dossier `sha256 e2c364f37c0cd630073a2832a34462bfaf06824569feb0a9a0cbadd47009987c`);
+  the dossier text now holds 9 files — weather.js joined the files
+  outside the 163,840-byte text budget, so `main.ts` now proves
+  every `game/src/*.js` file by the copy itself instead of by the
+  dossier text, and still counts the 12 package-table rows at
+  build time. `tools/playtest.mjs` 23/23 PASS, zero page errors;
+  `tools/taxi-probe.mjs` 14/14 PASS again (fare $58, payout $87);
+  a 16-check packages probe (`tools/packages-probe.mjs`, real
+  browser) 16/16 PASS, zero page errors: twelve cases, distinct
+  spots, all inside the fence, HUD `PACKAGES 0/12` → `1/12` on the
+  first pickup ($250 → $400), runway case pays second ($550),
+  save/reload/CONTINUE keeps cash $550 and the two found cases
+  stay found, `?shot=taxi` loads with a live fare and a waiting
+  passenger. Screenshots re-captured in the real browser (the
+  package boxes are in-world visuals), 1280×720, 74,797 / 85,705 /
+  75,873 / 69,875 bytes, all under the 256 KiB cap.

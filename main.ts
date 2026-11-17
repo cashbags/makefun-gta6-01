@@ -29,7 +29,7 @@
 // Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
 //   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
 
-import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDossier } from './vendor/makefun-game.ts';
@@ -78,22 +78,35 @@ writeFileSync(
 // Two different checks, because the dossier text is a budget, not the
 // game: the text holds at most text_max_bytes (163840, the scorer's
 // gate), so the tail files fall out of the text once the code grows
-// past it — at R3 that is audio.js, hud.js, shots.js and taxi.js,
-// which are still copied to /output and still played. The dossier
-// text check therefore covers only the files the text still holds
-// (airport.js, weather.js); the taxi module is proven by the copy
-// itself, which is the packaging guarantee that matters.
+// past it — at R3 rev B the text holds nine files and weather.js,
+// audio.js, hud.js, shots.js and taxi.js are outside it, while still
+// copied to /output and still played. A filename check against the
+// dossier text would fail on exactly those files, so the proof below
+// is the copy: it lists the repo's own game/src/ directory and proves
+// every module was copied, whichever files the text budget kept. The
+// one dossier-text check that stays is airport.js, the largest
+// district module, which the text still holds.
 {
   const dossier = JSON.parse(readFileSync(join(out, 'dossier.json'), 'utf8'));
   const dossierText = JSON.stringify(dossier);
-  for (const needed of ['game/src/airport.js', 'game/src/weather.js']) {
-    if (!dossierText.includes(needed)) {
-      throw new Error(`dossier is missing ${needed} — the airport/weather re-author did not copy`);
+  if (!dossierText.includes('game/src/airport.js')) {
+    throw new Error('dossier is missing game/src/airport.js — the airport re-author did not copy');
+  }
+  for (const file of readdirSync(join(here, 'game', 'src'))) {
+    if (!file.endsWith('.js')) continue;
+    if (!existsSync(join(out, 'game', 'src', file))) {
+      throw new Error(`output is missing game/src/${file} — the copy step did not copy it`);
     }
   }
-  for (const needed of ['game/src/taxi.js', 'game/src/audio.js', 'game/src/hud.js', 'game/src/shots.js']) {
-    if (!existsSync(join(out, needed))) {
-      throw new Error(`output is missing ${needed} — the copy step did not copy it`);
+  // The hunt is data, not code: the dossier text cannot prove the
+  // twelve cases exist, so main.ts reads the copied city.js and
+  // counts the package table's rows itself. A table edit that drops
+  // a row fails here, at build time, not in a player's hunt.
+  {
+    const cityText = readFileSync(join(out, 'game/src/city.js'), 'utf8');
+    const rows = (cityText.match(/\['(hospital|bank|garage|safehouse|shop|docks|marina|hangar|runway|shuttle|sportscar|taxiStand)',/g) ?? []).length;
+    if (rows !== 12) {
+      throw new Error(`package table holds ${rows} rows, expected 12`);
     }
   }
 }

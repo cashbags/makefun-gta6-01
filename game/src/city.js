@@ -13,8 +13,8 @@
 // graph the traffic and the pedestrians walk on. Nothing here loads a file:
 // the window texture is drawn on a canvas at build time.
 import * as THREE from 'three';
-import { CITY, BOUNDS } from './config.js';
-import { buildAirport } from './airport.js';
+import { CITY, BOUNDS, PACKAGES } from './config.js';
+import { buildAirport, taxiStandSpot } from './airport.js';
 
 const PALETTE = [0xe8b98a, 0xd98c6a, 0x7fb3a3, 0xe6d3a3, 0xc97b7b, 0x8fa8c8, 0xd9c9b8, 0xa8b89a, 0xe0a458, 0x9a8fb8];
 const ROOF = [0x5a4a3a, 0x6b5a4a, 0x4a4a52, 0x7a6a55];
@@ -62,6 +62,32 @@ export function roadCentres() {
   for (let i = 0; i <= CITY.blocks; i += 1) out.push(start + i * CITY.pitch);
   return out;
 }
+
+// The hidden-package table: [marker key, dx, dz] per case, twelve
+// rows, one per landmark and one per outlying place. The offsets are
+// in metres from the marker, chosen by hand against the map: each
+// case sits a few metres off its marker's front, clear of the
+// building colliders and on walkable ground, never inside a wall and
+// never in the water. 'taxiStand' is not a mission marker — it is
+// the airport kerb from airport.js — so createCity resolves it
+// through taxiStandSpot() instead of the markers table. The count
+// must match PACKAGES.count; createCity throws if it does not, so
+// a table edit that drops a row fails loudly at boot, not silently
+// in the hunt.
+const PACKAGE_SPOTS = [
+  ['hospital', 10, 6],
+  ['bank', -10, 8],
+  ['garage', 10, -6],
+  ['safehouse', -8, 10],
+  ['shop', 12, 4],
+  ['docks', 6, 20],
+  ['marina', -8, -6],
+  ['hangar', 10, 8],
+  ['runway', -40, 0],
+  ['shuttle', -6, 8],
+  ['sportscar', 8, 6],
+  ['taxiStand', 4, 2],
+];
 
 export function createCity(rng) {
   const group = new THREE.Group();
@@ -515,7 +541,26 @@ export function createCity(rng) {
   // missions can point at the terminal, the hangar and the runway.
   buildAirport(rng.fork(), group, colliders, parkedSpots, pedSpots, markers);
 
-  return { group, colliders, parkedSpots, pedSpots, markers, centres };
+  // Hidden packages: twelve gold cases, one per landmark, at fixed
+  // offsets from the mission markers — never drawn from the RNG, so
+  // the same seed always hides them in the same places and the hunt
+  // never reshuffles between replays. The offsets sit a few metres
+  // off each marker's front, clear of the building colliders, on
+  // ground the player can walk: the hospital case is by the steps,
+  // the docks case behind the containers, the runway case out on
+  // the open strip, the airport case at the taxi stand (the kerb
+  // where the cabs wait, from airport.js, not the terminal doors).
+  // The table is the whole placement rule — main.js only builds a
+  // mesh per spot and collects it — so moving a case is one row.
+  const packageSpots = PACKAGE_SPOTS.map(([key, dx, dz]) => {
+    const at = key === 'taxiStand' ? taxiStandSpot() : markers[key];
+    return { x: at.x + dx, z: at.z + dz, key };
+  });
+  if (packageSpots.length !== PACKAGES.count) {
+    throw new Error(`package table holds ${packageSpots.length} spots, PACKAGES.count says ${PACKAGES.count}`);
+  }
+
+  return { group, colliders, parkedSpots, pedSpots, markers, centres, packageSpots };
 }
 
 // Push a circle (x, z, radius) out of every collider it overlaps.

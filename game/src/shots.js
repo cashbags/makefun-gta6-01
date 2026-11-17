@@ -4,7 +4,10 @@
 // road, so the frame is what a short game really looks like — and the same
 // seed always gives the same frame. No scene reads the clock: the step
 // count is fixed, so two captures of one shot are byte-identical renders
-// apart from JPEG encoding.
+// apart from JPEG encoding. ?shot=taxi is a fifth staging, not a
+// screenshot scene: it seats the player in a yellow cab with a live
+// fare, so the cab-work flow can be probed in the real browser, and
+// shots.json stays at four scenes, the scorer's cap.
 //
 // The staging contract, so a later edit does not silently break the
 // screenshots: (1) every shot starts from a fresh world at ?seed=1 and
@@ -134,6 +137,22 @@ export function stageShot(name, ctx) {
     view.yaw = player.heading;
     view.pitch = 0.3;
     ctx.hud.showToast('Mission 1 — The Fixer: Meet Marisol at the docks', 30);
+    runSteps(ctx, 3, false);
+  } else if (name === 'taxi') {
+    // In a yellow cab with a live fare: seat the player in the nearest
+    // parked taxi and start a shift, so the frame shows the cab, the
+    // waiting passenger at the kerb and the yellow pickup beacon —
+    // the side job as the player meets it, three seconds of steps,
+    // no autopilot. Not a screenshot scene (shots.json stays at four,
+    // the cap); it exists so the fare flow can be staged and probed
+    // in the real browser from a URL.
+    const taxis = ctx.parked.filter((c) => c.kind === 'taxi');
+    taxis.sort((a, b) => (a.x * a.x + a.z * a.z) - (b.x * b.x + b.z * b.z));
+    const car = taxis[0] ?? ctx.parked[0];
+    ctx.seatPlayerInCar(car, true);
+    if (ctx.startTaxiShift) ctx.startTaxiShift();
+    view.yaw = player.car.angle;
+    view.pitch = 0.26;
     runSteps(ctx, 3, false);
   } else if (name === 'airport') {
     // On foot at the terminal forecourt, mission 6 live, facing the

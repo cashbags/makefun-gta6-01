@@ -47,6 +47,7 @@
   #hud-armor { font-size: 14px; color: #7fb3d9; font-weight: 700; }
   #hud-heat { font-size: 13px; color: #ff8a5c; font-weight: 700; margin-top: 4px; }
   #hud-taxi { font-size: 13px; color: #f2c94c; font-weight: 700; margin-top: 4px; }
+  #hud-packages { font-size: 13px; color: #f2c94c; font-weight: 700; margin-top: 4px; }
   #hud-weapon {
     position: absolute; right: 16px; bottom: 16px; text-align: right;
     background: rgba(11, 14, 20, 0.72); border: 1px solid rgba(255,255,255,0.16);
@@ -112,7 +113,7 @@
   <div id="hud-objective">Meet Marisol at the docks.</div>
   <div id="hud-arc">The Vega Jobs — mission 1 of 8 (arc 1 of 5)</div>
   <div id="hud-timer" class="hidden">100</div>
-  <div id="hud-help">WASD move / drive · Mouse drag camera<br>E enter car · Click shoot · R reload<br>Space jump · M sound · Esc pause<br>Yellow cab = taxi fares — pick up, drop off, get paid<br>City limits are fenced — the hills are the edge<br>North edge: Solmar International airport</div>
+  <div id="hud-help">WASD move / drive · Mouse drag camera<br>E enter car · Click shoot · R reload<br>Space jump · M sound · Esc pause<br>Yellow cab = taxi fares — pick up, drop off, get paid<br>Gold cases = hidden packages — 12 across the city, $150 each<br>City limits are fenced — the hills are the edge<br>North edge: Solmar International airport</div>
   <canvas id="minimap" width="190" height="190"></canvas>
   <div id="hud-vitals">
     <div class="label">HEALTH</div>
@@ -120,6 +121,7 @@
     <div id="hud-armor">ARMOUR 0</div>
     <div id="hud-heat">HEAT 0★ TOTAL</div>
     <div id="hud-taxi">TAXI —</div>
+    <div id="hud-packages">PACKAGES 0/12</div>
   </div>
   <div id="hud-weapon">
     <div class="label" id="hud-weapon-name">PISTOL</div>

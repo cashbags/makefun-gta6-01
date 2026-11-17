@@ -11,12 +11,12 @@
 // running the loop, paints it twice and sets window.__shotReady for a
 // screenshot.
 import * as THREE from 'three';
-import { STEP, CITY, PLAYER, CAR, WANTED, COMBAT, MISSIONS, SAVE_KEY, ROADBLOCK, TAXI } from './config.js';
+import { STEP, CITY, PLAYER, CAR, WANTED, COMBAT, MISSIONS, SAVE_KEY, ROADBLOCK, TAXI, PACKAGES } from './config.js';
 import { createRandom } from './rng.js';
 import { createCity, resolveCollisions } from './city.js';
 import { createCar, createTraffic, stepTraffic, stepPlayerCar, placeCar, createRoadblock, clearRoadblock, chaseSpeed, isTaxiCar } from './vehicles.js';
 import { createPed, createCop, createAirportCrowd, placePerson, stepPeds, stepCops, nearestPed, tagPassenger, PED_COUNT } from './peds.js';
-import { createMissions, currentObjective, currentStage, currentWaypoint, stepMissions, onMissionStart, storyArc, heatCommentary, cabWorkLine } from './missions.js';
+import { createMissions, currentObjective, currentStage, currentWaypoint, stepMissions, onMissionStart, storyArc, heatCommentary, cabWorkLine, packageLine } from './missions.js';
 import { createWeather, stepWeather, applyWeather, createRainPoints, stepRain, weatherLabel } from './weather.js';
 import { createTaxiPlane, stepTaxiPlane, AIRPORT } from './airport.js';
 import { createTaxiJob, createTaxiMarkers, taxiHudLine, stopName } from './taxi.js';
@@ -130,6 +130,23 @@ addPickup('health', city.markers.safehouse.x + 8, city.markers.safehouse.z);
 addPickup('ammo', city.markers.garage.x - 10, city.markers.garage.z + 10);
 addPickup('ammo', city.markers.docks.x + 6, city.markers.docks.z - 8);
 
+// Hidden packages: twelve gold cases at the fixed spots city.js
+// computed from the markers (city.packageSpots). They spin and bob
+// like the pickups, but they are one-shot — once found, a case is
+// gone for the save, and the twelfth pays the completion bonus.
+// The meshes are built here, from the spots, with no RNG: the hunt
+// is the same hunt on every seed replay.
+const packages = [];
+for (const spot of city.packageSpots) {
+  const mesh = new THREE.Mesh(
+    new THREE.BoxGeometry(0.9, 0.9, 0.9),
+    new THREE.MeshLambertMaterial({ color: 0xf2c94c }),
+  );
+  mesh.position.set(spot.x, 0.8, spot.z);
+  scene.add(mesh);
+  packages.push({ x: spot.x, z: spot.z, key: spot.key, mesh, found: false });
+}
+
 const missions = createMissions(city.markers);
 
 // --- Player state ---
@@ -192,6 +209,10 @@ const game = {
   // rating itself lives on the job (taxi.rating) and is saved with it.
   taxiFares: 0,
   taxiEarned: 0,
+  // Hidden packages, this save: how many of the twelve are found.
+  // The which is saved as indices (see saveGame), the count lives
+  // here so the HUD never counts the array twice.
+  packagesFound: 0,
   // The live roadblock, if the PD has one up, and when the last one
   // cleared (the cooldown lives here, not in the barrier builder).
   roadblock: null,
@@ -246,6 +267,10 @@ function saveGame() {
       // reload. A live shift does not — the fare is gone when the game
       // closes, and the job restarts at 'off'.
       taxiRating: taxi.rating, taxiFares: game.taxiFares, taxiEarned: game.taxiEarned,
+      // Hidden packages persist as the indices of the found cases, so
+      // a reload hides exactly the cases already collected and keeps
+      // the rest on the map — the hunt resumes where it stopped.
+      packagesFound: packages.map((p, i) => (p.found ? i : -1)).filter((i) => i >= 0),
     }));
     hud.showToast('Game saved.', 2);
   } catch { /* storage can be off; the game still plays */ }
@@ -277,6 +302,22 @@ function loadSave(data) {
   taxi.earned = data.taxiEarned ?? 0;
   game.taxiFares = taxi.fares;
   game.taxiEarned = taxi.earned;
+  // Restore the hunt: the found cases stay found (meshes hidden),
+  // the rest stay on the map. An index outside the table is ignored,
+  // so an old save never breaks a new table.
+  const foundIdx = Array.isArray(data.packagesFound) ? data.packagesFound : [];
+  game.packagesFound = 0;
+  for (const pk of packages) {
+    pk.found = false;
+    pk.mesh.visible = true;
+  }
+  for (const i of foundIdx) {
+    if (packages[i]) {
+      packages[i].found = true;
+      packages[i].mesh.visible = false;
+      game.packagesFound += 1;
+    }
+  }
   if (game.wanted > 0) {
     game.lastCrime = game.time;
     hud.showToast(`The heat remembers you — ${'★'.repeat(game.wanted)} still on you.`, 4);
@@ -730,7 +771,7 @@ function showOverlay(name, text) {
   for (const [key, el] of Object.entries(overlays)) el.classList.toggle('hidden', key !== name);
   if (name === 'story') {
     document.getElementById('story-stats').textContent =
-      `Cash $${game.cash.toLocaleString('en-US')} · ${game.kills} takedowns · ${game.carsStolen} cars stolen · ${formatTime(game.playSeconds)} in Solmar Bay. ${cabWorkLine(taxi.fares, taxi.earned, taxi.rating)}`;
+      `Cash $${game.cash.toLocaleString('en-US')} · ${game.kills} takedowns · ${game.carsStolen} cars stolen · ${formatTime(game.playSeconds)} in Solmar Bay. ${cabWorkLine(taxi.fares, taxi.earned, taxi.rating)} ${packageLine(game.packagesFound, PACKAGES.count)}`;
   }
   if (name === 'title') {
     document.getElementById('continue-btn').classList.toggle('hidden', !saveData);
@@ -1022,6 +1063,32 @@ function step(dt) {
     }
   }
 
+  // Hidden packages: spin, bob, and pay on foot. Only the player on
+  // foot can collect one — driving over a case does not count, so the
+  // hunt is a walk, not a drive-by. Each case pays PACKAGES.value;
+  // the twelfth pays the completion bonus on top, and the save is
+  // written at once, so a collected case stays collected.
+  for (const pk of packages) {
+    if (pk.found) continue;
+    pk.mesh.rotation.y += dt;
+    pk.mesh.position.y = 0.8 + Math.sin(game.time * 2 + pk.x) * 0.15;
+    if (!player.inCar && Math.hypot(pk.x - player.x, pk.z - player.z) < PACKAGES.pickupRadius) {
+      pk.found = true;
+      pk.mesh.visible = false;
+      game.packagesFound += 1;
+      game.cash += PACKAGES.value;
+      audio.chime();
+      if (game.packagesFound >= PACKAGES.count) {
+        game.cash += PACKAGES.bonus;
+        hud.showToast(`Hidden package ${game.packagesFound}/${PACKAGES.count} — $${PACKAGES.value}, and the full set pays $${PACKAGES.bonus}. Every case in Solmar Bay, found.`, 5);
+        audio.mission();
+      } else {
+        hud.showToast(`Hidden package ${game.packagesFound}/${PACKAGES.count} — $${PACKAGES.value}.`, 3);
+      }
+      saveGame();
+    }
+  }
+
   // Wanted: spawn police to match the stars, decay when quiet.
   if (game.screen === 'playing') {
     spawnPolice();
@@ -1169,6 +1236,9 @@ function step(dt) {
     // The cab-work line: rating and earnings when off, pickup and
     // fare while waiting, destination and time left while riding.
     taxi: taxiHudLine(taxi),
+    // The hunt line: found of twelve, always shown — a zero is a
+    // hunt not started, not a missing feature.
+    packages: `PACKAGES ${game.packagesFound}/${PACKAGES.count}`,
   }, dt);
   hud.drawMinimap({
     city, traffic, policeCars, footCops,
@@ -1178,6 +1248,10 @@ function step(dt) {
     // the destination while riding. Null when no shift is live.
     taxiDest: taxi.status === 'waiting' ? { ...taxi.pickup, boarding: true }
       : taxi.status === 'riding' ? { ...taxi.dest, boarding: false } : null,
+    // The uncollected packages, as gold dots: the hunt is visible
+    // on the map, so a player can plan the walk instead of
+    // wandering. Found cases leave the map with the mesh.
+    packages: packages.filter((p) => !p.found),
   });
 }
 
@@ -1221,7 +1295,7 @@ function frame(now) {
 // Debug handle for play-testing (read-only state for the test harness).
 window.__solmar = {
   game, player, missions, city, parked, traffic, peds, footCops, policeCars,
-  weather, taxiPlane, airport: AIRPORT, taxi,
+  weather, taxiPlane, airport: AIRPORT, taxi, packages,
   // The live roadblock, if one is up: the play-test reads its position
   // and colliders to prove it stands and clears.
   get roadblock() { return game.roadblock; },
@@ -1229,7 +1303,7 @@ window.__solmar = {
 
 // --- Shot mode: stage a deterministic scene, paint it, signal readiness ---
 if (shot) {
-  const scene2 = stageShot(shot, { step, game, player, city, missions, traffic, peds, parked, policeCars, camera, renderer, scene, hud, view, auto, seatPlayerInCar, createCar, placeCar });
+  const scene2 = stageShot(shot, { step, game, player, city, missions, traffic, peds, parked, policeCars, camera, renderer, scene, hud, view, auto, seatPlayerInCar, createCar, placeCar, startTaxiShift });
   let painted = 0;
   function paint() {
     renderer.render(scene, camera);

@@ -1,6 +1,19 @@
 [
-  {"name": "1-start.jpg", "query": "?shot=start&seed=1"},
-  {"name": "2-drive.jpg", "query": "?shot=drive&seed=1"},
-  {"name": "3-chase.jpg", "query": "?shot=chase&seed=1"},
-  {"name": "4-airport.jpg", "query": "?shot=airport&seed=1"}
+  {
+    "name": "1-start.jpg",
+    "query": "?shot=start&seed=1"
+  },
+  {
+    "name": "2-drive.jpg",
+    "query": "?shot=drive&seed=1"
+  },
+  {
+    "name": "3-chase.jpg",
+    "query": "?shot=chase&seed=1"
+  },
+  {
+    "name": "4-airport.jpg",
+    "query": "?shot=airport&seed=1",
+    "note": "taxi stand at the forecourt kerb (40, -180) and one hidden package sit in this frame; a cab-work fare to the terminal starts at the stand, not the doors"
+  }
 ]

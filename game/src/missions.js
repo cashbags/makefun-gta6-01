@@ -292,3 +292,13 @@ export function cabWorkLine(fares, earned, rating) {
   if (fares <= 0) return 'Cab work: no fares yet — the yellow cabs are still waiting.';
   return `Cab work: ${fares} fare${fares === 1 ? '' : 's'} · $${earned.toLocaleString('en-US')} earned · rating ${rating.toFixed(1)}★.`;
 }
+
+// The story screen's hunt line: how many of the twelve hidden
+// packages the player found. A full set names the bonus; a partial
+// set names what is left, so the free-roam after the story has a
+// reason to keep walking.
+export function packageLine(found, total) {
+  if (found <= 0) return 'Hidden packages: none found yet — twelve gold cases are hidden across Solmar Bay.';
+  if (found >= total) return `Hidden packages: all ${total} found — the full set paid its bonus.`;
+  return `Hidden packages: ${found} of ${total} found — ${total - found} still hidden.`;
+}

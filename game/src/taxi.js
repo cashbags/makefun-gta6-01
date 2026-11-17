@@ -30,6 +30,7 @@ import * as THREE from 'three';
 import { TAXI } from './config.js';
 import { createRandom } from './rng.js';
 import { rainFareMultiplier } from './weather.js';
+import { taxiStandSpot } from './airport.js';
 
 // Where fares can start and end: places the player already knows, all
 // reachable by road and inside the fence. The airport and hangar are in
@@ -90,8 +91,14 @@ export function createTaxiJob(seed) {
     offerFare(markers, rain = 0) {
       if (job.status !== 'off') return null;
       const [a, b] = stream.pickN(TAXI_STOPS, 2);
-      const pickup = markers[a];
-      const dest = markers[b];
+      // An airport fare starts at the taxi stand — the kerb where the
+      // cabs wait — not at the terminal doors: the passenger is
+      // standing with the cabs, and the stand is where the pickup
+      // beacon and the waiting ped belong. Every other stop uses its
+      // mission marker as-is.
+      const pos = (key) => (key === 'airport' ? taxiStandSpot() : markers[key]);
+      const pickup = pos(a);
+      const dest = pos(b);
       if (!pickup || !dest) return null;
       const dist = Math.hypot(dest.x - pickup.x, dest.z - pickup.z);
       job.pickupKey = a;

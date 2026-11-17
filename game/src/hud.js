@@ -32,6 +32,7 @@ export function createHud(document) {
   const speed = el('hud-speed');
   const timer = el('hud-timer');
   const taxiLine = el('hud-taxi');
+  const packagesLine = el('hud-packages');
   const minimap = el('minimap');
   const mctx = minimap.getContext('2d');
   let toastTimer = 0;
@@ -86,6 +87,10 @@ export function createHud(document) {
       // the HUD only shows it — and the guard is there so a harness
       // that stubs the HUD with fewer elements still runs.
       if (taxiLine) taxiLine.textContent = state.taxi ?? '';
+      // The hunt line, next to the cab-work line in the vitals block:
+      // found of twelve, always shown. Same guard as the taxi line —
+      // a harness that stubs the HUD with fewer elements still runs.
+      if (packagesLine) packagesLine.textContent = state.packages ?? '';
       speed.textContent = state.inCar ? `${Math.round(Math.abs(state.carSpeed) * 3.6)} km/h` : '';
       // Timed missions get a countdown of their own, big and red under
       // the objective line, because the objective text alone (a small
@@ -200,6 +205,15 @@ export function createHud(document) {
         mctx.lineTo(tx - 5, tz);
         mctx.closePath();
         mctx.fill();
+      }
+      // The uncollected hidden packages, as gold dots: the hunt is
+      // visible on the map, so a player can plan the walk instead of
+      // wandering. Found cases leave the list with the mesh, so the
+      // map empties as the hunt completes.
+      for (const pk of world.packages ?? []) {
+        const [px, pz] = toMap(pk.x, pk.z);
+        mctx.fillStyle = '#f2c94c';
+        mctx.fillRect(px - 2, pz - 2, 4, 4);
       }
       // Traffic: grey dots. Police: blue dots.
       for (const car of world.traffic) {
