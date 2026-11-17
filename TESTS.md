@@ -81,3 +81,147 @@ figure.
   gates run on the site's sealed recordings, not locally), 5 checked
   at submission. The entrypoint selects node22, the LICENSE declares
   SPDX MIT, the snapshot is within the intake caps.
+
+## Run log (this session, in order)
+
+The build worker's claims were checked first, before any edit, and
+the numbers below are what the re-runs printed — not the build
+session's numbers, which are quoted in CHECK.md only where they
+match.
+
+- Base commit `a7b089e` (17 Nov 22:24 WIB): repo public, owner
+  `cashbags`, description + homepage set, topic `makefun`, created
+  2026-11-17T15:00:25Z; README badges + referral `qrg7fvky`;
+  LICENSE MIT + SPDX; `vendor/makefun-game.ts` byte-identical to
+  the kit starter; kit check 4 passed / 0 failed / 16 skipped /
+  5 at submission; `main.ts` twice → `diff -r` clean (dossier
+  `sha256 d951cca3…` at that state); play-test 24/24 PASS, car
+  moved 25.6 m, zero page errors; screenshots 1280×720, 56,253 /
+  69,006 / 58,154 / 48,823 bytes. Verdict on the build worker's
+  claims: all confirmed, no discrepancies.
+- Fence revision `b3cec3b`: syntax check on all ten `game/src`
+  files clean; boundary probe 9/9 PASS (north z = −163, east
+  x = 171, south z = 167, west on foot x = −171, toast shown,
+  docks −161 and marina 159 inside the fence), zero page errors;
+  `main.ts` twice → clean (dossier `sha256 4a3b2aa1…` at that
+  state); play-test 24/24 PASS, car moved 24.0 m, zero page
+  errors.
+- Docs revision `dc8101c`: `main.ts` twice → clean (dossier
+  `sha256 1c2634ee…` at that state — the hash moved because the
+  screenshots were re-captured, not because the docs changed:
+  root docs are not part of the dossier); play-test 24/24 PASS;
+  screenshots re-captured in the real browser, 59,279 / 72,287 /
+  60,978 / 55,213 bytes, all 1280×720; the mission shot was read
+  back from disk and shows the fence posts and rails behind the
+  containers, the hills behind them, and the amber fence rectangle
+  on the minimap.
+- Content revision `e25ad05`: syntax check clean (the one
+  `node --check` complaint is `serve.ts`, which is TypeScript and
+  was already TypeScript before this session — the server runs
+  it fine); `main.ts` twice → clean (dossier `sha256 c4d19810…`
+  at that state); play-test 24/24 PASS, car moved 24.0 m, zero
+  page errors; boundary probe 9/9 PASS again; timer probe 9/9
+  PASS (timer 100 → 99 over the probe, hidden off a timed stage;
+  truck 5 and muscle 10 among parked + traffic; fountain collider
+  at (120, 0) and tower collider at (−60, 162) present), zero
+  page errors; screenshots re-captured, 59,914 / 71,614 / 60,439
+  / 55,213 bytes, all 1280×720.
+
+## Screenshot hashes (final capture)
+
+- `1-start.jpg` 1280×720, 59,914 bytes
+- `2-drive.jpg` 1280×720, 71,614 bytes
+- `3-chase.jpg` 1280×720, 60,439 bytes
+- `4-mission.jpg` 1280×720, 55,213 bytes
+
+All four under the 256 KiB cap, all real browser captures from
+the `?shot=` scenes in `shots.json` at `?seed=1`. The mission
+shot kept the same size across the last two captures (55,213
+bytes) but its bytes changed (`sha256 916f19fd…` → `03281e50…`),
+because the reshuffled pedestrians and the new parked-car kinds
+moved what stands near the docks even though the framing shows
+none of the plaza or the beach. A changed screenshot means the
+game changed, which is the property the staging contract in
+DESIGN.md relies on.
+
+## What the probes do not cover
+
+The probes run in headless Chromium with no audio device, so the
+tension drone, the fence thud and the siren are verified by code
+path (guarded calls, no errors) rather than by ear — a human with
+speakers should listen once. The play-test teleports the player
+to mission markers instead of driving there, so the drive itself
+is covered by the 24 m drive check and the autopilot shots, not
+by a full mission-3-to-5 playthrough; missions 3, 4 and 5 are
+covered by the state machine's own rules (timed, evade, grab) and
+by the timer probe for the timed stage, not by a live run to the
+marina. The fence probe drives into the fence at speed in a car
+and walks into it on foot; it does not test a patrol car ramming
+the player into the fence, which the clamp handles the same way
+(every mover goes through `resolveCollisions`).
+
+## How each probe drives the game
+
+The probes are not magic: each one opens the game in headless
+Chromium, waits for the page to load, and then plays it through
+the same debug handle the game exposes for testing
+(`window.__solmar`, a read-only view of the live state) plus
+real keyboard and mouse input where the rule under test is about
+input. The play-test (`tools/playtest.mjs`) clicks START, then
+teleports the player beside the nearest parked car and presses E
+— a teleport plus a real keypress, so the steal rule is tested
+with the real input path and only the walking is skipped. It
+holds W until the car has covered 15 m, clicks at the centre of
+the screen to shoot, teleports to the docks marker for mission 1
+and beside the mission sports car for mission 2, sets wanted to
+3 and waits for a foot cop to bust the player, then pauses,
+saves, reloads the page and continues — every step asserting the
+number the game shows (cash 250 → 750 → 1950 → 1650, ammo
+12 → 11, mission 0 → 1 → 2). The boundary probe
+(`tools/boundary-probe.mjs`) steals a car, points it at each of
+the four fence lines in turn, floors it, and asserts the clamped
+coordinate and the `bounded` flag plus the toast text; then it
+walks west on foot and asserts the same clamp, and reads the
+docks and marina markers to assert they sit inside the fence.
+The timer probe (`tools/timer-probe.mjs`) sets the mission state
+to the timed stage directly, reads the countdown element twice
+to assert it ticks, hides it by leaving the stage, counts the
+car kinds in the world to assert the truck and the muscle car
+exist, and reads the collider list to assert the fountain and
+the tower stand where the city builds them. The screenshot tool
+(`tools/shots.mjs`) loads each `?shot=` URL, waits for
+`window.__shotReady`, and saves a JPEG at 1280×720 — no
+rendering, no PIL, no screenshots from data. The smoke tool
+(`tools/smoke.mjs`) loads the title screen, starts the game,
+walks forward for three seconds and saves one live frame to
+`/tmp`, which is the fastest way to see whether the game boots
+at all after an edit. Every probe fails loudly (exit 1) on the
+first broken rule and prints `PAGE ERRORS: none` only when the
+page raised no error and the console logged none.
+
+## Regression checklist for future edits
+
+Run these in order after any change, and stop at the first
+failure: (1) `node --check` on every `game/src/*.js` file (the
+two TypeScript files, `main.ts` and `serve.ts`, are checked by
+running them, not by `--check`); (2) two `main.ts` runs into two
+directories and `diff -r` — any difference means the edit broke
+determinism; (3) `tools/playtest.mjs` — 24 checks, zero page
+errors; (4) `tools/boundary-probe.mjs` — 9 checks, zero page
+errors; (5) `tools/timer-probe.mjs` — 9 checks, zero page errors;
+(6) `tools/shots.mjs` and verify the four captures from disk for
+dimensions and size; (7) `makefun check` — 4 passed, 0 failed.
+A change that touches the city, the RNG order, the car kinds or
+the parked spots changes the screenshots (the staged scenes
+depend on the world), so re-capture after those edits and expect
+the hashes to move; a change that touches only the root docs
+(TESTS.md, CHECK.md, DESIGN.md, README.md, LICENSE) does not
+change the dossier hash, because the dossier is built from
+game/ and screenshots/ only — but a change to any file under
+game/, even a comment or a line of HUD text, does change it,
+because that file is copied into the output the dossier hashes.
+If a probe fails after an edit that should not have touched its
+rule, suspect the RNG order first: a draw inserted before
+existing draws reshuffles everything after it, and the symptom
+is a parked car, a pedestrian or a patrol car in a different
+place, not an error message.

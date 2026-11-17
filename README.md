@@ -15,6 +15,40 @@ node serve.ts
 
 WASD walk/drive, mouse-drag camera, E steal &amp; exit cars, click shoot, R reload, Space jump, Shift run, Esc pause &amp; save, M sound. Follow the amber beacon to the next job. The city ends at a fence with hills behind it (and the sea to the south) — hitting the fence thuds and the HUD says so; the docks and the marina sit just inside it, so no mission is ever blocked by the edge.
 
+## The city
+
+Solmar Bay is a 5×5 grid of blocks (46 m blocks, 14 m streets) on
+a coastal edge: a park, a plaza with a fountain, five landmarks
+(hospital, bank, garage, safehouse, shops), a dockyard of
+containers on the west edge, and a marina with piers, boats and a
+beach on the south edge. A fence and a ring of hills mark the city
+limit; the sea is the boundary to the south. Everything is built
+from one seed (`?seed=N`), so the same seed always builds the same
+city, the same traffic and the same opening pedestrians.
+
+## The systems
+
+| System | What it does |
+| --- | --- |
+| Driving | Arcade model: accelerate, brake/reverse, steering that bites harder at low speed; 7 car kinds (sedan, taxi, van, sport, muscle, truck, police) with their own speed and handling |
+| Stealing | E near any parked or traffic car takes it (+1 wanted star) |
+| Wanted | 0–5 stars, decay after 25 quiet seconds, foot cops + patrol cars spawn to match, busted/wasted respawn at the hospital with a $300 fine |
+| Missions | Five jobs for the fixer Marisol Vega — walk, steal, timed delivery, evade, grab-and-escape — $500 to $5,000 a job |
+| Combat | Hitscan pistol, 12-round magazine, 1.1 s reload, 34 damage; armour absorbs 60%; health/ammo pickups respawn every 30 s |
+| HUD | Cash, stars, clock, health, armour, ammo, objective, timed-mission countdown, toast, live minimap with the fence, waypoint, traffic and police |
+| Sound | Fully synthesised WebAudio: engine, two-tone siren, tension drone at 3+ stars, gunshots, crashes, fence thud, pickup and mission chimes, A-minor bassline — no audio files |
+| Save | Pause menu saves to localStorage; CONTINUE on the title screen |
+
+## The story
+
+You are Rook, a driver-for-hire with a borrowed pistol and a debt
+to pay. Marisol Vega runs Solmar Bay from the docks, and she has
+five jobs with your name on them: meet her at the docks, steal a
+red sports car by the park, run a package to the garage in 100
+seconds, lose the police and lay low at the flat, and finish with
+the Big Score at Solmar Trust Bank — grab the vault cash and escape
+to the marina. Finish all five and the city is yours to drive.
+
 ## Verification
 
 Independently re-verified in a real browser (headless Chromium):
