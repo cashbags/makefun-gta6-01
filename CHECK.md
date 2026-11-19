@@ -359,3 +359,28 @@ section were also rewritten in new wording in this session, with
 two stale facts corrected (eight missions, not five; the north
 fence 79 m past the grid for the airport strip) and the respray
 documented as its own section.
+
+## Kit check at the pushed HEAD (8888cda)
+
+- `node kit20/gta6-01-kit/cli/makefun.mjs check --kit kit20/gta6-01-kit
+  --repo entry/ --transcripts /tmp/gta6-r4-bundle2.tar.gz`, run 19 Nov
+  04:33 WIB on system node v24.22.1, trial bundle with the
+  parent-chain flags (`--prompt-file prompt-gas.txt`,
+  `--parent-session` the main-chat session, `--prompt-origin
+  handed-off`): 12 passed, 1 failed, 7 skipped, 5 checked at
+  submission. The passes: competition_open, snapshot (30 files,
+  2,835,337 bytes), license_osi, entrypoint, transcripts_present,
+  transcripts_recorded, thinking_wellformed (299 messages),
+  thinking_in_window, thinking_reproduces, thinking_turns (117),
+  thinking_revised (main.js from 8 messages), transcripts_run_record
+  (handed-off prompt "Gas kalo free", parent chat included — the
+  chain fix works). thinking_reproduces: 30.7% (1,895 authored of
+  6,171 counted lines; 46 copied, 0 pasted, 3,296 read, 934 absent;
+  unwritten 15.0% against a 40% cap; entrypoint main.ts 51 authored
+  lines) — above the 30% bar, up from 25.9% on the first trial
+  bundle. The single failure is thinking_priced (0 usage rows),
+  which is structural: a subagent's usage rows are written only
+  once its run completes, so the parent attaches them in the final
+  re-bundle after this session finishes. The trial bundle itself is
+  /tmp/gta6-r4-bundle2.tar.gz (5,202,810 bytes,
+  sha256 426f665edd072c5fd8ce90c6c7034febce80e89bb0fdd37066540d536cd527c7).
