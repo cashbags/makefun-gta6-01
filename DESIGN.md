@@ -19,113 +19,121 @@ commercial game.
 
 ## The city (`city.js`)
 
-The city is a grid: blocks of buildable ground separated by streets. The
-grid is the whole design — traffic, pedestrians, police and missions all
-read the same road centres, so every system agrees on where the streets
-are. Buildings are boxes with a shared canvas window texture, in a warm
-stucco palette, with varied heights so the skyline is not flat. One block
-is a park, five blocks are landmarks (hospital, bank, garage, safehouse,
-shops), the west edge is a dockyard of containers, and the south edge is a
-marina with piers and boats on open water. Collision is a list of
-axis-aligned boxes, and `resolveCollisions` pushes circles (the player, a
-car, a pedestrian, a cop) out of them — cheap, exact, and the same code
-for every mover.
+One grid carries the whole game: blocks of buildable ground cut by
+streets, and every system — traffic, pedestrians, police, missions —
+reads the same street centres, so nothing ever disagrees about where
+a road is. Buildings are boxes sharing one canvas window texture, in
+warm stucco, at varied heights so the skyline steps instead of
+flattening. A block is a park; five blocks are landmarks (hospital,
+bank, garage, safehouse, shops); the west edge is a dockyard of
+containers and the south edge a marina with piers and boats on open
+water. Colliders are axis-aligned boxes, and `resolveCollisions`
+pushes a circle — player, car, pedestrian, cop — out of them: cheap,
+exact, and one code path for every mover in the game.
 
 ## Cars (`vehicles.js`)
 
-A car is boxes: body, cabin, wheels, headlights, plus a light bar for
-police and a roof sign for taxis. Traffic owns a road and a direction and
-drives to the next intersection, where it usually keeps going and
-sometimes turns; it slows for the car ahead on its lane. The player's car
-is an arcade model: accelerate, brake/reverse, steering that bites harder
-at low speed, and a thud (speed cut, camera shake) against buildings.
-Stealing is the core verb: E near any parked or traffic car takes it, and
-the game answers with a wanted star.
+Every car is boxes: body, cabin, wheels, headlights, a light bar on
+police cars and a roof sign on taxis. Traffic picks a road and a
+direction and drives for the next intersection, where it mostly
+carries on and sometimes turns, easing off for the car ahead in its
+lane. The player's car is arcade: accelerate, brake and reverse,
+steering that bites harder the slower you go, and a thud — speed
+cut, camera shake — when it meets a building. The core verb is
+stealing: press E near any parked or traffic car to take it, and the
+game answers with a wanted star.
 
 ## People (`peds.js`)
 
-Pedestrians are box figures in varied shirts who walk the sidewalks, turn
-at the city edge, and run from gunshots and crashes. Foot cops are the
-same figure in dark blue with a badge and a cap: they run at the player,
-shoot badly past six metres, and bust the player if they stay close for
-two seconds. The police's difficulty is not aim — it is numbers: more
-stars means more cops and more patrol cars.
+Pedestrians are box figures in different shirts who walk the
+sidewalks, turn at the city edge, and run from gunshots and crashes.
+Foot cops are the same figure in dark blue with a badge and a cap:
+they run the player down, shoot badly past six metres, and bust the
+player if they can stay close for two seconds. The police are not
+hard because they aim well — they are hard because there are more
+of them with every star: more foot cops, more patrol cars.
 
 ## Wanted (`main.js`)
 
-Stars 0–5. Crimes add stars: stealing a car, running a pedestrian over,
-shooting a bystander, killing an officer (two). Stars decay one at a time
-after 25 seconds with no crime and no cop in sight. Police spawn to match
-the stars and despawn when the heat is off. Busted (a cop holds the player
-on foot, or a patrol car catches them) and wasted (health zero) both end
-at the hospital with a $300 fine — the loop that makes the player care
-about the stars.
+Zero to five stars. Crimes add them: stealing a car, running a
+pedestrian over, shooting a bystander, killing an officer (two at
+once). With no crime and no cop in sight for 25 seconds, one star
+falls off; the rest follow the same way. Police spawn to match the
+stars and leave when the heat is off. Getting busted — a cop holding
+the player on foot, or a patrol car catching them — and getting
+wasted, health at zero, both end the same way: awake at the
+hospital, $300 lighter. That loop is what makes the stars matter.
 
 ## Missions (`missions.js`)
 
-Five jobs, in order, each a short list of stages. A stage is one of five
-kinds: reach a marker, steal a target car, reach a marker against a timer,
-lose the heat and then reach a marker, or grab the vault cash and escape
-to the marina. The mission module is a pure state machine: it takes the
-player's position, car and wanted level and returns events (stage done,
-mission done, failed, story done). The story is small on purpose — five
-jobs, about fifteen minutes — because the city, not the script, is the
-game.
+Eight jobs in order, each a short list of stages. A stage is one of
+five kinds: reach a marker, steal a target car, reach a marker
+against a timer, lose the heat and then reach a marker, or grab the
+vault cash and escape to the marina. The mission module is a pure
+state machine: it takes the player's position, car and wanted level
+and returns events — stage done, mission done, failed, story done.
+The story stays small on purpose, eight jobs and about fifteen
+minutes, because the city is the game and the script is the tour.
 
 ## Combat
 
-Hitscan pistol, 12-round magazine, 1.1 s reload, 34 damage a hit. The
-shot ray is tested against the nearest living person inside a narrow cone
-and inside range, with a building check sampled along the ray, so cover
-works. Armour absorbs 60% of incoming damage. Ammo and health pickups
-sit at the hospital, the garage and the docks and respawn after 30 s.
+A hitscan pistol: 12-round magazine, 1.1 s reload, 34 damage a hit.
+A shot tests the nearest living person inside a narrow cone and
+inside range, sampling the ray against buildings along the way, so
+cover works. Armour absorbs 60% of incoming damage. Health and ammo
+pickups sit at the hospital, the garage and the docks and come back
+after 30 s.
 
 ## HUD and minimap (`hud.js`)
 
-DOM for the numbers (cash, stars, clock, health, armour, ammo, objective,
-toast) and a canvas for the minimap, redrawn every frame from the same
-world data the 3D view uses: roads, blocks, water, traffic dots, police
-dots, the pulsing amber waypoint diamond, the player triangle. The
-waypoint also has a 3D beacon — a glowing pillar the player can see
-across the city — so the objective is findable without the map.
+Numbers live in the DOM — cash, stars, clock, health, armour, ammo,
+objective, toast — and the minimap is a canvas redrawn every frame
+from the same world data the 3D view uses: roads, blocks, water,
+traffic dots, police dots, the pulsing amber waypoint diamond, the
+player triangle. The waypoint has a 3D beacon too, a glowing pillar
+visible across the city, so the objective can be found without ever
+opening the map.
 
 ## Sound (`audio.js`)
 
-No audio files. WebAudio synthesises everything: a sawtooth engine whose
-pitch follows speed, a two-tone siren while the police are near, filtered
-noise bursts for gunshots and crashes, blips for pickups and mission
-chimes, and a sequenced A-minor bassline with a hat tick. Audio starts on
-the first gesture (the title click) and M mutes it. A headless run without
-audio never throws: every call is guarded.
+There are no audio files: WebAudio synthesises all of it. A sawtooth
+engine whose pitch follows speed, a two-tone siren while police are
+near, filtered noise bursts for gunshots and crashes, blips for
+pickups and mission chimes, and a sequenced A-minor bassline under a
+hat tick. Sound starts on the first gesture — the title click — and
+M mutes it. A headless run with no audio never throws: every call is
+guarded.
 
 ## Determinism
 
-One seeded RNG (`rng.js`, mulberry32) drives the city, the traffic, the
-pedestrians and the police. The simulation advances in fixed 1/60 s
-steps; `?seed=N` fixes the world, and `?shot=` stages a scene by playing
-the real rules forward a fixed number of steps with a scripted autopilot.
-The same seed and the same shot always stage the same frame. Rendering
-and audio may use the wall clock for visuals, but nothing in the
-simulation reads `Math.random()` or `Date.now()`.
+One seeded RNG (`rng.js`, mulberry32) builds the city, the traffic,
+the pedestrians and the police. The simulation steps in fixed 1/60 s
+ticks; `?seed=N` fixes the world, and `?shot=` stages a scene by
+running the real rules forward a fixed number of steps with a
+scripted autopilot. The same seed with the same shot always stages
+the same frame. Rendering and audio may use the wall clock for
+looks, but nothing in the simulation reads `Math.random()` or
+`Date.now()`.
 
 ## The city limit
 
 Solmar Bay ends at a fence, not at an invisible wall. The playable
-rectangle is `BOUNDS` in `config.js`: 14 m past the last street on the
-east and west, 6 m past it to the north, 10 m toward the water to the
-south. Those numbers are not round for the sake of it — they are the
-smallest rectangle that still contains the two mission places outside
-the street grid (the docks at x = −161, the marina at z = 159), so the
-fence never blocks a job. `city.js` draws the fence on exactly that
-rectangle (posts every 8 m, two rails) with a ring of hills behind it
-on the land sides; the south side has no fence because the sea is the
-boundary there. The hills cost the seeded RNG nothing — their heights
-come from their index — so adding the edge did not reshuffle the city
-behind it. `resolveCollisions` clamps every mover to the rectangle and
-reports `bounded`, so the car thuds, the HUD says why, and the minimap
-draws the same rectangle in amber. The previous limit (60 m past the
-grid) let a car drive onto bare concrete with nothing to look at; the
-new one keeps the drive inside the place that was built.
+rectangle is `BOUNDS` in `config.js`: 14 m past the last street east
+and west, 79 m past it to the north, 10 m toward the water to the
+south. The numbers are the smallest rectangle that still holds the
+mission places outside the street grid — the docks at x = −161, the
+marina at z = 159, and the whole airport strip north of the grid, so
+the fence never blocks a job. `city.js` draws the fence on exactly
+that rectangle, posts every 8 m with two rails, and a ring of hills
+behind it on the land sides; the south side has no fence because the
+sea is the boundary there. The hills cost the seeded RNG nothing —
+their heights come from their index — so adding the edge did not
+reshuffle the city behind it. `resolveCollisions` clamps every mover
+to the rectangle and reports `bounded`, so the car thuds, the HUD
+says why, and the minimap draws the same rectangle in amber. The old
+limit, 60 m past the grid, let a car drive onto bare concrete with
+nothing to look at; the fence keeps the drive inside the place that
+was built.
 
 ## Tuning the numbers
 
@@ -187,98 +195,104 @@ mutes the master gain without stopping the sequencer.
 
 ## Police AI
 
-The police come in two kinds with different jobs, and the wanted
-level is the dial that mixes them. Foot cops spawn 32–48 m from the
-player in a random direction (clamped inside the fence by the same
-collision pass as everything else), run at 4.6 m/s — slower than a
-car, faster than a walk, about the same as a run — and do two things:
-they shoot past 6 m and they bust inside 2.4 m held for 2 s. Their
-shooting is deliberately bad: a shot every 1.4 s, 8 damage, and a hit
-only inside 18 m, so a cop at range is pressure rather than a
-threat and the danger is the bust timer, not the bullets. A cop does
-not path around buildings — it slides along them, which is why cops
-sometimes take the long way around a block, and why losing them
-around a corner works. Patrol cars spawn on a random road, steer
-toward the player at up to 19 m/s (faster than any traffic car,
-slower than a sports car at full speed), and ram: on contact with
-the player's car they cut its speed and deal 4 damage if it is
+Two kinds of police do two different jobs, and the wanted level is
+the dial that mixes them. A foot cop spawns 32–48 m from the player
+in a random direction, clamped inside the fence by the same
+collision pass everything else uses, and runs at 4.6 m/s — slower
+than a car, faster than a walk, about the same as a run. It does two
+things: it shoots past 6 m, and it busts inside 2.4 m held for 2 s.
+The shooting is deliberately bad — one shot every 1.4 s, 8 damage,
+and a hit only inside 18 m — so a cop at range is pressure, not a
+threat, and the real danger is the bust timer, not the bullets. A
+cop does not path around buildings; it slides along them, which is
+why cops sometimes take the long way around a block and why losing
+one around a corner works. Patrol cars spawn on a random road,
+steer toward the player at up to 19 m/s — faster than any traffic
+car, slower than a sports car at full speed — and ram: contact with
+the player's car cuts its speed and deals 4 damage when it is
 moving fast, and a patrol car that catches the player on foot ends
-the chase with a bust. The spawn table is the difficulty curve:
-0 stars means no police at all, 1 star means one foot cop, 2 stars
-one foot cop and one patrol car, 3 stars two and two, 4 stars three
-and three, 5 stars three and four. Police despawn when the heat is
-off — foot cops are removed the moment the wanted level hits zero,
+the chase with a bust. At four stars the interceptors join, faster
+still at 22 m/s. The spawn table is the difficulty curve: no stars,
+no police; one star, one foot cop; two stars, one foot cop and one
+patrol car; three stars, two and two; four stars, three and three;
+five stars, three foot cops and four cars. Police despawn when the
+heat is off — foot cops go the moment the wanted level hits zero,
 patrol cars on their next step — so the street empties the moment
 the player has actually escaped, instead of leaving a tail of
-leftover cops. The tension drone in the audio (a semitone above the
-bass root) fades in at three stars, so the player hears the step
-from "one cop" to "the whole department" before they count the
-cars.
+leftover cops behind. The tension drone in the audio, a semitone
+above the bass root, fades in at three stars, so the player hears
+the step from "one cop" to "the whole department" before they count
+the cars.
 
 ## Traffic
 
-Fourteen traffic cars share the road graph with the player. Each
-one owns a road (an axis and a centre line), a direction and a lane
-offset of 3.2 m, and drives to the next intersection, where it keeps
-going 60% of the time and turns onto the crossing street 40% of the
-time. The turn is not a curve: the car snaps to the new road and
+Fourteen traffic cars share the road graph with the player. Each one
+owns a road — an axis and a centre line — plus a direction and a lane
+offset of 3.2 m, and drives for the next intersection, where it
+carries on 60% of the time and turns onto the crossing street 40% of
+the time. The turn is not a curve: the car snaps to the new road and
 lane at the intersection, which reads as a sharp city turn at these
-speeds and costs no steering model. Cars slow for the car ahead on
-their lane (down to that car's speed minus 2, never below zero) and
-wrap to the far side of the same road when they leave the city, so
-traffic is a loop rather than a stream that drains away. The wrap
-line sits at half + 4, well inside the fence at half + 14, so no
-traffic car ever touches the boundary. Speeds are per kind: trucks
-8 m/s, vans 9, sedans 11, taxis 12, muscle cars 14, sports cars 15,
-police interceptors 16 — which is why a truck is a moving wall that
-queues the cars behind it and why stealing the red sports car for
-the Hot Wheels job is also the fastest way to run from the police
-afterwards. Parked cars are a separate population from traffic: they
-sit on spots along the road edges, facing along the road, and any of
-them (plus any traffic car) can be stolen with E inside 3.4 m. A
-stolen traffic car leaves the traffic list, so the street it came
-from gets quieter; a stolen parked car leaves the parked list, so
-the spot stays empty. Both lists are rebuilt only by a fresh page
-load — the city does not respawn cars, which is why a long free
-roam slowly empties the streets of parked cars and the player ends
-up stealing from traffic.
+speeds and costs no steering model. Cars ease off for the car ahead
+in their lane, down to that car's speed minus 2 and never below
+zero, and wrap to the far side of the same road when they leave the
+city, so traffic is a loop rather than a stream that drains away.
+The wrap line sits at half + 4, well inside the fence at half + 14,
+so no traffic car ever touches the boundary. Speeds are per kind —
+trucks 8 m/s, vans 9, sedans 11, taxis 12, limos 12, muscle cars 14,
+sports cars 15, patrol cars 16, interceptors 18, buses 8, shuttles
+10 — which is why a truck is a moving wall that queues the cars
+behind it, and why stealing the red sports car for the Hot Wheels
+job is also the fastest way to run from the police afterwards.
+Parked cars are a separate population from traffic: they sit on
+spots along the road edges, facing along the road, and any of them —
+plus any traffic car — can be stolen with E inside 3.4 m. A stolen
+traffic car leaves the traffic list, so the street it came from
+gets quieter; a stolen parked car leaves the parked list, so the
+spot stays empty. Both lists are rebuilt only by a fresh page load:
+the city does not respawn cars, which is why a long free roam
+slowly empties the streets of parked cars and the player ends up
+stealing from traffic.
 
 ## Pedestrians
 
 Twenty-four pedestrians walk the sidewalks, one sidewalk axis each,
 turning at the city edge (half − 2, well inside the fence) and at
-nothing else — they do not cross streets, they do not enter blocks,
+nothing else: they do not cross streets, they do not enter blocks,
 and they never reach the fence, the beach or the plaza fountain.
-Their speed is 1.0–1.7 m/s walking and 4.4 m/s fleeing, and a scare
-(gunshot, crash, car bearing down, or a body within 14 m) makes them
-run away from the scare for 3 s. A dead pedestrian is not gone
-forever: after 20 s the respawn loop picks a sidewalk spot at least
-40 m from the player and puts a fresh pedestrian there with full
+They walk at 1.0–1.7 m/s and flee at 4.4 m/s, and a scare — a
+gunshot, a crash, a car bearing down, or a body within 14 m — makes
+them run away from it for 3 s. A dead pedestrian is not gone for
+good: after 20 s the respawn loop picks a sidewalk spot at least
+40 m from the player and puts a fresh pedestrian there at full
 health, so the street keeps its population without ever respawning
 someone in the player's face. The spawn itself is the one place the
-shuffled-sidewalk change matters: the spots are shuffled from a
-fork of the seeded stream and dealt in order, so no two pedestrians
-start on the same paving stone, and the shuffle costs the main
-stream nothing. Pedestrians are the game's conscience as much as
-its scenery: running one over is a crime (+1 star, the car slows),
-shooting one is a crime (+1 star), and the peds who watched it run
-— which is how a quiet street turns into a wanted level without the
-player ever touching a police car.
+shuffled-sidewalk change matters: the spots are shuffled from a fork
+of the seeded stream and dealt in order, so no two pedestrians start
+on the same paving stone, and the shuffle costs the main stream
+nothing. Pedestrians are the game's conscience as much as its
+scenery: running one over is a crime — +1 star, and the car slows —
+shooting one is a crime too, and the peds who watched it run, which
+is how a quiet street turns into a wanted level without the player
+ever touching a police car.
 
 ## Save and persistence
 
-The save is one localStorage key, `solmar-save-v1`, holding cash,
-mission, stage, position, health, armour, ammo, reserve ammo and
-play seconds — nothing else. It is written on every mission
-completion and on the pause menu's SAVE GAME button, and read on
-CONTINUE from the title screen. A fresh start puts the player on
-the road at (−30, 14) with $250, 100 health, no armour, a full
-magazine and 48 reserve rounds. Busted and wasted do not touch the
-save: they respawn the player at St. Anselm Hospital with full
-health (and no armour, in the wasted case) and a $300 fine taken
-from cash, and the save still holds the pre-bust mission — so the
-punishment is money and position, never progress. NEW GAME clears
-the key and reloads the page with a clean query string, which is
+The save is one localStorage key, `solmar-save-v1`. It holds cash,
+mission, stage, position, health, armour, ammo, reserve ammo, play
+seconds, the wanted level and the lifetime heat total, the cab-work
+record (rating, fares, earnings), the indices of the found hidden
+packages, and the respray palette index — the whole record of a run,
+not just the position in it. It is written on every mission
+completion, on every respray and every package pickup, and on the
+pause menu's SAVE GAME button, and read on CONTINUE from the title
+screen. A fresh start puts the player on the road at (−30, 14) with
+$250, 100 health, no armour, a full magazine and 48 reserve rounds.
+Busted and wasted do not touch the save: they respawn the player at
+St. Anselm Hospital with full health (and no armour, in the wasted
+case) and a $300 fine taken from cash, and the save still holds the
+pre-bust mission — so the punishment is money and position, never
+progress. NEW GAME clears the key and reloads the page with a clean
+query string, which is
 the only way to wipe a save from inside the game. The save format
 has no version field beyond the key name itself: if the format ever
 changes, the key changes with it (`solmar-save-v2`), and an old
@@ -457,6 +471,40 @@ the uncollected cases as gold dots, so the hunt is visible on the
 map and the player can plan the walk instead of wandering. The
 story screen closes with a hunt line next to the cab-work line —
 how many were found, and how many are still hidden.
+
+## Vega Customs: the respray shop (`config.js`, `vehicles.js`, `main.js`)
+
+Vega Motors is already a landmark — the garage at the north end of
+the grid — and R4 makes it a shop. Drive a car into the bay in
+front of its doors and press R: the car repaints in the next colour
+of a six-colour palette (Solmar Blue, Sunset Red, Taxi Gold,
+Midnight, Palm Green, Vice Pink) for $100, cycling in order from
+whatever the car is wearing now, so the first respray of a blue
+sedan is Sunset Red and the sixth wraps back to Solmar Blue. There
+is no menu: the shop is a place you drive into, not a screen you
+open, and the radius is the bay itself — close enough that the car
+is visibly at the shop, far enough that parking on the street
+outside does not count. Three refusals, each with its own reason:
+pressing R outside the bay says where the shop is, pressing it
+short of the $100 says how short you are, and pressing it on foot
+just reloads the pistol — R is the reload key on foot and the
+respray key in a car, so the split never steals a binding the
+player needs. The paint is the crew's signature: the palette index
+of the colour chosen stays with the player in the save, and any car
+Rook steals after that gets painted in it when he takes it, so the
+signature travels with the driver, not the car. A car with no
+signature keeps its own paint, which is why the index starts at
+−1: the red sports car stays red until the player chooses a colour
+for it. The paint lives in one place — the body material on the
+car's mesh group, which every body-coloured extra shares — so a
+respray is one colour set on one material, no rebuild and no new
+draw call, and the current colour is read off that same material
+when the shop works out what "next" means. R's auto-repeat is
+guarded, so holding the key is one press, one colour, one charge.
+The shop is cosmetic on purpose: it spends money the player earned
+elsewhere, it never touches a mission, a star, or the driving
+model, and it is the one system in the game that is purely about
+making the car yours.
 
 ## Known limits and follow-ups
 

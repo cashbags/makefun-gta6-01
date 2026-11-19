@@ -153,7 +153,34 @@ export function buildCarMesh(kind) {
     }
   }
   group.userData.spec = spec;
+  // The body material rides on the group so Vega Customs can find
+  // it: a respray recolors this one material in place, and every
+  // body-coloured extra shares it, so the whole car changes with
+  // one colour set and no rebuild.
+  group.userData.bodyMat = bodyMat;
   return group;
+}
+
+// Vega Customs: repaint the body (and the body-coloured extras,
+// which share the material) in place. The mesh is the same object,
+// only the material colour changes, so a respray costs no rebuild
+// and no new draw call. Returns false when the car has no body
+// material to paint — a mesh built elsewhere, or a car whose group
+// never got one — so the caller can say so instead of crashing.
+export function resprayCar(car, hex) {
+  const mat = car.mesh?.userData?.bodyMat;
+  if (!mat) return false;
+  mat.color.setHex(hex);
+  car.paint = hex;
+  return true;
+}
+
+// The colour a car is wearing now, read off the same material the
+// respray writes — the one place the current paint lives, so the
+// shop's "next colour" cycle and the save both read it from here
+// instead of keeping a second copy that could disagree.
+export function paintHex(car) {
+  return car.mesh?.userData?.bodyMat?.color.getHex() ?? null;
 }
 
 // A car in the world: position, heading, speed, and whether the

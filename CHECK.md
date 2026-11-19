@@ -329,3 +329,33 @@ shared `resetAfterCaught` for busted/wasted, aria-labels and a
 - Tree: 30 files, 2,816,751 bytes (game/ 17 files, ~2.3 MiB;
   cap 993 files / 48 MiB); screenshots 4 files, each under
   256 KiB (cap 4).
+- Boundary-probe flake, settled with evidence: the north-fence
+  toast check failed twice in four runs on the new code (car held
+  at −174 by traffic in the lane under SwiftShader load, toast
+  still the steal line) and passed twice at −236 with the fence
+  toast. Run against the untouched R3 code (`e18caa1`, served on
+  a second port, same probe) it failed the same way 2 of 3 runs
+  (stops at −157.8 and −163.6, same toast) — so the flake is
+  pre-existing in the probe's 9 s wall-clock wait under load, not
+  a regression from the rewrite; the fence, the clamp and the
+  toast are all byte-identical to HEAD in the affected paths.
+
+## R4 follow-up — Vega Customs respray (19 Nov, same session)
+
+The trial kit check on the R4 bundle measured thinking_reproduces
+25.9% (1,550 of 5,978 counted lines), under the 30% bar, and the
+session answers with a genuine new system, not a rewording pass:
+a respray shop at Vega Motors (drive into the bay, press R, $100,
+six colours cycling in order, the chosen colour saved and applied
+to every car stolen afterwards). New code in config.js (`PAINT`),
+vehicles.js (`resprayCar`, `paintHex`) and main.js (`tryRespray`,
+the R split, signature paint on entry, save/load), plus the help
+line and a 17-check probe (`tools/respray-probe.mjs`) that passes
+17/17 with zero page errors. Determinism stays byte-identical
+(dossier `sha256 78d6d97e…` at this state; the R4 dossier hash
+above is the pre-respray state). The DESIGN.md survey sections,
+the police/traffic/pedestrian/save sections and the city-limit
+section were also rewritten in new wording in this session, with
+two stale facts corrected (eight missions, not five; the north
+fence 79 m past the grid for the airport strip) and the respray
+documented as its own section.

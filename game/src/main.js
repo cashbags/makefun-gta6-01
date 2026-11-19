@@ -11,10 +11,10 @@
 // chase|mission|airport stages a scene instead of running the loop,
 // paints it twice and sets window.__shotReady for a screenshot.
 import * as THREE from 'three';
-import { STEP, CITY, PLAYER, CAR, WANTED, COMBAT, MISSIONS, SAVE_KEY, ROADBLOCK, TAXI, PACKAGES, ECONOMY } from './config.js';
+import { STEP, CITY, PLAYER, CAR, WANTED, COMBAT, MISSIONS, SAVE_KEY, ROADBLOCK, TAXI, PACKAGES, ECONOMY, PAINT } from './config.js';
 import { createRandom } from './rng.js';
 import { createCity, resolveCollisions } from './city.js';
-import { createCar, createTraffic, stepTraffic, stepPlayerCar, placeCar, createRoadblock, clearRoadblock, chaseSpeed, isTaxiCar } from './vehicles.js';
+import { createCar, createTraffic, stepTraffic, stepPlayerCar, placeCar, createRoadblock, clearRoadblock, chaseSpeed, isTaxiCar, resprayCar, paintHex } from './vehicles.js';
 import { createPed, createCop, createAirportCrowd, placePerson, stepPeds, stepCops, nearestPed, tagPassenger, PED_COUNT } from './peds.js';
 import { createMissions, currentObjective, currentStage, currentWaypoint, stepMissions, onMissionStart, storyArc, heatCommentary, cabWorkLine, packageLine } from './missions.js';
 import { createWeather, stepWeather, applyWeather, createRainPoints, stepRain, weatherLabel } from './weather.js';
@@ -160,6 +160,13 @@ const player = {
   reloadTimer: 0, fireTimer: 0,
   inCar: false, car: null, inMissionCar: false,
   speed: 0, grounded: true, walkPhase: 0,
+  // Vega Customs: the index into PAINT.colors of the crew's
+  // signature colour, or -1 when no respray has been bought yet.
+  // -1 means "no signature": a stolen car keeps its own paint
+  // until the player pays for a colour, and the save stores this
+  // index, not a colour, so the palette can change without
+  // invalidating a save.
+  paintIndex: -1,
 };
 
 function buildPlayerMesh() {
@@ -279,6 +286,10 @@ function saveGame() {
       // keeps the rest on the map — the hunt resumes where it
       // stopped.
       packagesFound: packages.map((p, i) => (p.found ? i : -1)).filter((i) => i >= 0),
+      // The crew colour persists as its palette index, so a
+      // respray bought yesterday still paints the next car stolen
+      // today. -1 means no respray bought yet.
+      paintIndex: player.paintIndex,
     }));
     hud.showToast('Game saved.', 2);
   } catch { /* storage can be off; the game still plays */ }
@@ -326,6 +337,13 @@ function loadSave(data) {
       game.packagesFound += 1;
     }
   }
+  // Restore the crew colour: the palette index comes back as it
+  // was, clamped into the palette, so an old save never points
+  // outside a palette that grew since. The colour itself applies
+  // when the player next takes a car — the save holds the taste,
+  // not the car.
+  const savedPaint = data.paintIndex ?? -1;
+  player.paintIndex = savedPaint >= 0 && savedPaint < PAINT.colors.length ? savedPaint : -1;
   if (game.wanted > 0) {
     game.lastCrime = game.time;
     hud.showToast(`The heat remembers you — ${'★'.repeat(game.wanted)} still on you.`, 4);
@@ -352,7 +370,17 @@ window.addEventListener('keydown', (e) => {
     hud.showToast(audio.muted ? 'Sound off (M to turn on).' : 'Sound on.', 2);
   }
   if (e.key.toLowerCase() === 'e') tryEnterExitCar();
-  if (e.key.toLowerCase() === 'r') startReload();
+  // R does two jobs, split by where the player is: on foot it
+  // reloads the pistol; in a car it asks Vega Customs for the next
+  // colour. The split is why the reload never fires while driving
+  // — a held R in a car used to start a reload the driver could
+  // not see, and the ammo refilled mid-chase for free. e.repeat
+  // guards the respray against the key's auto-repeat: one press,
+  // one colour, one charge.
+  if (e.key.toLowerCase() === 'r' && !e.repeat) {
+    if (player.inCar) tryRespray();
+    else startReload();
+  }
   if (e.key === 'Enter' || e.key === ' ') confirmAction();
 });
 window.addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
@@ -499,6 +527,13 @@ function seatPlayerInCar(car, silent) {
     const i = traffic.indexOf(car);
     if (i >= 0) traffic.splice(i, 1);
   }
+  // The crew colour: once Rook has paid for a respray, every car
+  // he takes gets painted in it — the signature travels with the
+  // driver, not the car. A car with no signature keeps its own
+  // paint, which is why the paint only applies when the index is
+  // set: the red sports car stays red until the player chooses a
+  // colour for it.
+  if (player.paintIndex >= 0) resprayCar(car, PAINT.colors[player.paintIndex].hex);
   if (!silent) {
     addWanted(1, 'Car stolen — someone called it in');
     game.carsStolen += 1;
@@ -534,6 +569,40 @@ function tryEnterExitCar() {
   const car = nearestCar(3.4);
   if (!car) return;
   seatPlayerInCar(car, false);
+}
+
+// --- Vega Customs: respray at Vega Motors ---
+// The shop is a bay, not a menu: drive the car into the garage
+// marker at Vega Motors and press R. The colour cycles through
+// PAINT.colors in order from whatever the car is wearing now, so
+// the first respray of a blue sedan is Sunset Red, the next is
+// Taxi Gold, and the sixth wraps back to Solmar Blue. The charge
+// is taken before the paint changes, and the save is written at
+// once, so a respray survives a reload — the signature is bought,
+// not rented. Three ways it says no, each with its own reason:
+// not in a car, not at the shop, or short of the $100.
+function tryRespray() {
+  if (!player.inCar || !player.car || game.screen !== 'playing') return;
+  const g = city.markers.garage;
+  if (Math.hypot(player.car.x - g.x, player.car.z - g.z) > PAINT.radius) {
+    hud.showToast('Vega Customs is at Vega Motors — drive into the garage bay to respray.', 3);
+    return;
+  }
+  if (game.cash < PAINT.cost) {
+    hud.showToast(`A respray is $${PAINT.cost} — you're $${PAINT.cost - game.cash} short.`, 3);
+    return;
+  }
+  const current = paintHex(player.car);
+  const at = PAINT.colors.findIndex((c) => c.hex === current);
+  const next = PAINT.colors[(at + 1) % PAINT.colors.length];
+  game.cash -= PAINT.cost;
+  player.paintIndex = PAINT.colors.indexOf(next);
+  resprayCar(player.car, next.hex);
+  audio.pickup();
+  // Save before the toast: saveGame shows its own "Game saved."
+  // line, and the respray line is the one the player should read.
+  saveGame();
+  hud.showToast(`Vega Customs: ${next.name} — $${PAINT.cost}. The crew colour now.`, 3);
 }
 
 // --- Taxi side-job ---

@@ -457,3 +457,24 @@ verifier can re-run them by hand in the browser console instead:
   75,873 / 69,875 bytes — byte-identical to the R3 committed
   captures, which is the point: the deterministic staged scenes
   render the same pixels from the rewritten code.
+
+- R4 follow-up — Vega Customs respray (19 Nov, same session
+  `cb03bff1`): the trial kit check measured thinking_reproduces
+  25.9% (1,550 of 5,978 counted lines), under the 30% bar, so the
+  session adds a genuine new system instead of rewording for its
+  own sake. A respray shop at Vega Motors: drive into the garage
+  bay and press R — $100, palette of six colours cycling in order,
+  the chosen colour saved as a palette index and applied to every
+  car stolen afterwards. New code in config.js (`PAINT`), vehicles.js
+  (`resprayCar`, `paintHex`, body material on the mesh group) and
+  main.js (`tryRespray`, R split by on-foot/in-car, signature paint
+  on entry, save/load of the index), plus the help line in
+  index.html. `main.ts` twice → `diff -r` clean (dossier
+  `sha256 78d6d97e07db452da48bf78c2d070beb4b016192eeabc473d212be14e4c934d6`);
+  a 17-check respray probe (`tools/respray-probe.mjs`, real browser)
+  17/17 PASS, zero page errors: first respray $250 → $150, blue
+  sedan → Sunset Red; second → $50, Taxi Gold; R away from the shop
+  charges nothing and points at Vega Motors; R short on cash ($50)
+  refuses and keeps the paint; the save holds paintIndex 2; after
+  reload + CONTINUE the index survives and the next stolen car wears
+  Taxi Gold.

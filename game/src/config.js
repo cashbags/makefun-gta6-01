@@ -230,4 +230,29 @@ export const ECONOMY = {
   ammoPickup: 36,
 };
 
+// Vega Customs: the respray shop at Vega Motors. A respray costs
+// PAINT.cost and cycles the car through PAINT.colors in order, so
+// every press is the next colour and there is no menu to open —
+// the shop is a bay you drive into, not a screen. The paint is the
+// crew's signature: the colour chosen stays with the player in the
+// save, and any car Rook steals after that gets painted in it when
+// he takes it, so the signature travels with the driver, not the
+// car. A car with no signature keeps its own paint, which is why
+// the index starts at -1: no respray bought, no colour imposed.
+// The radius is the bay in front of the garage doors — close
+// enough that the car is visibly at the shop, far enough that
+// parking on the street outside does not count.
+export const PAINT = {
+  cost: 100,
+  radius: 7,
+  colors: [
+    { name: 'Solmar Blue', hex: 0x4a6fa5 },
+    { name: 'Sunset Red', hex: 0xc23b2e },
+    { name: 'Taxi Gold', hex: 0xf2c94c },
+    { name: 'Midnight', hex: 0x14161a },
+    { name: 'Palm Green', hex: 0x3a7a5a },
+    { name: 'Vice Pink', hex: 0xd94f9e },
+  ],
+};
+
 export const SAVE_KEY = 'solmar-save-v1';
