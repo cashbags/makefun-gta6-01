@@ -114,6 +114,7 @@
   <div id="hud-arc">The Vega Jobs — mission 1 of 8 (arc 1 of 5)</div>
   <div id="hud-timer" class="hidden">100</div>
   <div id="hud-help">WASD move / drive · Mouse drag camera<br>E enter car · Click shoot · R reload<br>Space jump · M sound · Esc pause<br>Yellow cab = taxi fares — pick up, drop off, get paid<br>Gold cases = hidden packages — 12 across the city, $150 each<br>City limits are fenced — the hills are the edge<br>North edge: Solmar International airport</div>
+  <noscript><p style="position:fixed;left:16px;top:12px;z-index:20">SOLMAR needs JavaScript to run — the whole city is built in the browser.</p></noscript>
   <canvas id="minimap" width="190" height="190"></canvas>
   <div id="hud-vitals">
     <div class="label">HEALTH</div>
@@ -145,8 +146,8 @@
     <b>Esc / P</b> pause &amp; save &nbsp;·&nbsp; <b>M</b> sound &nbsp;·&nbsp; follow the <b style="color:#f2c94c">amber beacon</b>
   </div>
   <div>
-    <button id="start-btn">START</button>
-    <button id="continue-btn" class="secondary hidden">CONTINUE</button>
+    <button id="start-btn" aria-label="Start a new game">START</button>
+    <button id="continue-btn" class="secondary hidden" aria-label="Continue the saved game">CONTINUE</button>
   </div>
   <p style="font-size:12px;color:#9aa0a6">Progress saves to this browser. A fully original game — no assets, names or places from any commercial game.</p>
 </div>
@@ -155,22 +156,22 @@
   <h2 style="color:#f2c94c">PAUSED</h2>
   <p>Solmar Bay waits for no one. Your progress is safe here.</p>
   <div>
-    <button id="resume-btn">RESUME</button>
-    <button id="save-btn" class="secondary">SAVE GAME</button>
-    <button id="restart-btn" class="secondary">NEW GAME</button>
+    <button id="resume-btn" aria-label="Resume the game">RESUME</button>
+    <button id="save-btn" class="secondary" aria-label="Save the game">SAVE GAME</button>
+    <button id="restart-btn" class="secondary" aria-label="Start a new game, discarding the save">NEW GAME</button>
   </div>
 </div>
 
 <div id="screen-busted" class="overlay hidden">
   <h2>BUSTED</h2>
   <p id="end-text-busted"></p>
-  <button id="end-btn">BACK TO THE STREETS</button>
+  <button id="end-btn" aria-label="Back to the streets">BACK TO THE STREETS</button>
 </div>
 
 <div id="screen-wasted" class="overlay hidden">
   <h2>WASTED</h2>
   <p id="end-text-wasted"></p>
-  <button id="end-btn">BACK TO THE STREETS</button>
+  <button id="end-btn" aria-label="Back to the streets">BACK TO THE STREETS</button>
 </div>
 
 <div id="screen-story" class="overlay hidden">
@@ -179,7 +180,7 @@
   the hold and the city behind him — eight jobs, from the docks to the
   runway to the marina. Free roam — the city stays open.</p>
   <p id="story-stats"></p>
-  <button id="story-btn">KEEP DRIVING</button>
+  <button id="story-btn" aria-label="Keep driving in free roam">KEEP DRIVING</button>
 </div>
 
 <script type="importmap">

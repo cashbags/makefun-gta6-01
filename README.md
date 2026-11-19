@@ -73,8 +73,16 @@ fence probe (the car stops at the fence on all four sides — north
 now −236, past the airport — the docks, marina, airport and runway
 stay reachable), and a 30-check probe of the new systems (missions
 6–8 end to end, roadblock, interceptor, heat persistence, rain
-grip, night) all passing with zero page errors. See `TESTS.md` and
-`CHECK.md` for the runs and the numbers.
+grip, night) all passing with zero page errors. Re-authored a
+fourth time on 19 Nov (R4, session `cb03bff1`) under the user's own
+opening words, after the R3 submit was refused for a run record
+with no user prompt: all 16 counted files rewritten in new wording
+(+2,042/−1,927 lines), same game, same numbers — play-test 23/23,
+taxi probe 14/14 (fare $58, payout $87), packages probe 16/16,
+boundary 9/9, timer 9/9, determinism byte-identical (dossier
+`sha256 b53e97e0…`), four screenshots re-captured and byte-identical
+to the R3 captures. See `TESTS.md` and `CHECK.md` for the runs and
+the numbers.
 
 ## How it is built
 

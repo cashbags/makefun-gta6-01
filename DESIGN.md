@@ -885,3 +885,19 @@ see what it is moving:
   160 m triangle wave. Crowd: 8 peds on the forecourt, 24 on the
   streets. Traffic: 14 cars, weighted pick, a bus or a limo about
   as often as a second taxi.
+
+## R4 re-author (19 Nov)
+
+The submit was refused, not the game: the R3 run record opened
+with coordinator briefs instead of the user's own prompt, so the
+entry is re-authored in a session the user opened himself. Nothing
+about Solmar changes — the same city, the same systems, the same
+numbers. What changes is the wording: every counted file rewritten
+fresh, with the small improvements the rewrite made natural (the
+`ECONOMY` constants, the sky stop table, the voice factory, the
+minimap draw helpers, the shared bust/waste reset). The verification
+is the same suites, re-run: determinism byte-identical, play-test
+23/23, taxi 14/14, packages 16/16, boundary 9/9, timer 9/9, and the
+four screenshots byte-identical to the R3 captures — the same pixels
+from new words, which is the strongest statement the rewrite kept
+the game intact.

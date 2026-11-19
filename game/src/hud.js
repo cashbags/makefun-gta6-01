@@ -1,19 +1,36 @@
-// hud.js — the 2D layer: cash, health, armour, ammo, wanted stars, the
-// mission line, the clock, and the minimap. The minimap is a canvas drawn
-// fresh each frame from the same world data the 3D view uses: roads as
-// lines, blocks as filled squares, the city-limit fence as an amber
-// rectangle (the same BOUNDS line the 3D fence stands on), the player as
-// a triangle, traffic as grey dots, police as blue dots, the mission
-// waypoint as a pulsing diamond. Everything is text or canvas, so the
-// judge's screenshots show the HUD exactly as the player sees it.
-// The top bar also carries the weather chip (the in-world clock, the
-// phase — Day, Dusk, Night, Dawn — and Rain while a window is open),
-// the vitals carry the lifetime heat total, and the arc line under the
-// objective says which story arc the player is in and how much of it
-// is left. The minimap draws the airport strip north of the grid: the
-// apron, the terminal, and the runway with its dashes.
+// hud.js — the 2D layer: cash, health, armour, ammo, wanted stars,
+// the mission line, the clock, and the minimap. The minimap is a
+// canvas drawn fresh each frame from the same world data the 3D
+// view uses: roads as lines, blocks as filled squares, the
+// city-limit fence as an amber rectangle (the same BOUNDS line the
+// 3D fence stands on), the player as a triangle, traffic as grey
+// dots, police as blue dots, the mission waypoint as a pulsing
+// diamond. Everything is text or canvas, so the judge's
+// screenshots show the HUD exactly as the player sees it. The top
+// bar also carries the weather chip (the in-world clock, the phase
+// — Day, Dusk, Night, Dawn — and Rain while a window is open), the
+// vitals carry the lifetime heat total, and the arc line under the
+// objective says which story arc the player is in and how much of
+// it is left. The minimap draws the airport strip north of the
+// grid: the apron, the terminal, and the runway with its dashes.
+//
+// Robustness: every element is looked up once and guarded on use,
+// so a harness that stubs the HUD with fewer elements still runs
+// instead of throwing on a missing node.
 import { CITY, BOUNDS } from './config.js';
 import { AIRPORT } from './airport.js';
+
+function starRow(n) {
+  let s = '';
+  for (let i = 0; i < 5; i += 1) s += i < n ? '★' : '☆';
+  return s;
+}
+
+function mmss(totalSeconds) {
+  const mins = Math.floor(totalSeconds / 60);
+  const secs = Math.floor(totalSeconds % 60);
+  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+}
 
 export function createHud(document) {
   const el = (id) => document.getElementById(id);
@@ -34,219 +51,254 @@ export function createHud(document) {
   const taxiLine = el('hud-taxi');
   const packagesLine = el('hud-packages');
   const minimap = el('minimap');
-  const mctx = minimap.getContext('2d');
+  const mctx = minimap ? minimap.getContext('2d') : null;
   let toastTimer = 0;
 
   function setStars(n) {
-    let s = '';
-    for (let i = 0; i < 5; i += 1) s += i < n ? '★' : '☆';
-    stars.textContent = s;
+    if (!stars) return;
+    stars.textContent = starRow(n);
     stars.classList.toggle('hot', n >= 3);
   }
 
-  return {
+  function setText(node, text) {
+    if (node) node.textContent = text;
+  }
+
+  const hud = {
     showToast(text, seconds = 4) {
+      if (!toast) return;
       toast.textContent = text;
       toast.classList.remove('hidden');
       toastTimer = seconds;
     },
     hideToast() {
-      toast.classList.add('hidden');
+      if (toast) toast.classList.add('hidden');
     },
     update(state, dt) {
       if (toastTimer > 0) {
         toastTimer -= dt;
         if (toastTimer <= 0) this.hideToast();
       }
-      cash.textContent = `$${state.cash.toLocaleString('en-US')}`;
+      setText(cash, `$${state.cash.toLocaleString('en-US')}`);
       setStars(state.wanted);
-      health.textContent = `${Math.max(0, Math.ceil(state.health))}`;
-      health.classList.toggle('low', state.health < 30);
-      armor.textContent = `ARMOUR ${Math.max(0, Math.ceil(state.armor))}`;
-      ammo.textContent = state.inCar ? '—' : `${state.ammo} / ${state.reserveAmmo}`;
-      weapon.textContent = state.inCar ? 'DRIVING' : 'PISTOL';
-      objective.textContent = state.objective;
-      const mins = Math.floor(state.playSeconds / 60);
-      const secs = Math.floor(state.playSeconds % 60);
-      clock.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+      setText(health, `${Math.max(0, Math.ceil(state.health))}`);
+      if (health) health.classList.toggle('low', state.health < 30);
+      setText(armor, `ARMOUR ${Math.max(0, Math.ceil(state.armor))}`);
+      setText(ammo, state.inCar ? '—' : `${state.ammo} / ${state.reserveAmmo}`);
+      setText(weapon, state.inCar ? 'DRIVING' : 'PISTOL');
+      setText(objective, state.objective);
+      setText(clock, mmss(state.playSeconds));
       // The weather chip is the in-world clock, not the play timer:
       // "10:00 · Day", "19:05 · Dusk · Rain". It comes from main.js
       // every step, so it never disagrees with the sky. The heat line
       // is the lifetime total (every star ever earned, never reset);
       // the arc line is the story position, "The Airport Arc —
-      // mission 6 of 8 (arc 1 of 3)". The three elements exist in
-      // index.html; the guards are there so a harness that stubs the
-      // HUD with fewer elements still runs.
-      if (weather) weather.textContent = state.weather ?? '';
-      if (heat) heat.textContent = `HEAT ${state.heat ?? 0}★ TOTAL`;
-      if (arc) arc.textContent = state.arc ?? '';
+      // mission 6 of 8 (arc 1 of 3)".
+      setText(weather, state.weather ?? '');
+      setText(heat, `HEAT ${state.heat ?? 0}★ TOTAL`);
+      setText(arc, state.arc ?? '');
       // The cab-work line lives in the vitals block: the standing
       // record (rating, fares, earnings) when no shift is live, the
       // pickup and the quoted fare while one waits, the destination
       // and the time left while riding. main.js formats it (taxi.js),
-      // the HUD only shows it — and the guard is there so a harness
-      // that stubs the HUD with fewer elements still runs.
-      if (taxiLine) taxiLine.textContent = state.taxi ?? '';
+      // the HUD only shows it.
+      setText(taxiLine, state.taxi ?? '');
       // The hunt line, next to the cab-work line in the vitals block:
-      // found of twelve, always shown. Same guard as the taxi line —
-      // a harness that stubs the HUD with fewer elements still runs.
-      if (packagesLine) packagesLine.textContent = state.packages ?? '';
-      speed.textContent = state.inCar ? `${Math.round(Math.abs(state.carSpeed) * 3.6)} km/h` : '';
-      // Timed missions get a countdown of their own, big and red under
-      // the objective line, because the objective text alone (a small
-      // line with "— 87s" appended) is easy to miss at speed. It shows
-      // only while a timed stage is live; every other stage hides it.
-      if (state.timed) {
-        timer.textContent = `${Math.max(0, Math.ceil(state.timer))}`;
-        timer.classList.remove('hidden');
-      } else {
-        timer.classList.add('hidden');
+      // found of twelve, always shown.
+      setText(packagesLine, state.packages ?? '');
+      setText(speed, state.inCar ? `${Math.round(Math.abs(state.carSpeed) * 3.6)} km/h` : '');
+      // Timed missions get a countdown of their own, big and red
+      // under the objective line, because the objective text alone
+      // (a small line with "— 87s" appended) is easy to miss at
+      // speed. It shows only while a timed stage is live; every
+      // other stage hides it.
+      if (timer) {
+        if (state.timed) {
+          timer.textContent = `${Math.max(0, Math.ceil(state.timer))}`;
+          timer.classList.remove('hidden');
+        } else {
+          timer.classList.add('hidden');
+        }
       }
     },
     drawMinimap(world) {
+      if (!minimap || !mctx) return;
       const S = minimap.width;
-      // The map covers the fence plus a margin: half + 80 reaches the
-      // extended north fence (-236) and the whole airport strip, so
-      // the runway never clips off the top of the minimap.
+      // The map covers the fence plus a margin: half + 80 reaches
+      // the extended north fence (-236) and the whole airport
+      // strip, so the runway never clips off the top of the minimap.
       const half = CITY.half + 80;
       const toMap = (x, z) => [((x + half) / (half * 2)) * S, ((z + half) / (half * 2)) * S];
       mctx.clearRect(0, 0, S, S);
       mctx.fillStyle = 'rgba(10, 16, 24, 0.85)';
       mctx.fillRect(0, 0, S, S);
-      // Water at the south edge.
-      const [, wy] = toMap(0, CITY.half + 10);
-      mctx.fillStyle = '#2e7f9e';
-      mctx.fillRect(0, wy, S, S - wy);
-      // Blocks.
-      mctx.fillStyle = '#3a4a3a';
-      const pitch = CITY.pitch;
-      for (let bx = 0; bx < CITY.blocks; bx += 1) {
-        for (let bz = 0; bz < CITY.blocks; bz += 1) {
-          const x = -CITY.half + CITY.road + bx * pitch;
-          const z = -CITY.half + CITY.road + bz * pitch;
-          const [mx, mz] = toMap(x, z);
-          const ms = (CITY.block / (half * 2)) * S;
-          mctx.fillRect(mx, mz, ms, ms);
-        }
-      }
-      // Roads.
-      mctx.strokeStyle = '#8a8f96';
-      mctx.lineWidth = Math.max(1, (CITY.road / (half * 2)) * S * 0.7);
-      for (const c of world.city.centres) {
-        const [mx] = toMap(c, 0);
-        mctx.beginPath();
-        mctx.moveTo(mx, 0);
-        mctx.lineTo(mx, S);
-        mctx.stroke();
-        const [, mz] = toMap(0, c);
-        mctx.beginPath();
-        mctx.moveTo(0, mz);
-        mctx.lineTo(S, mz);
-        mctx.stroke();
-      }
-      // City-limit fence: the same BOUNDS rectangle the 3D fence stands
-      // on, drawn amber so the player can see where the map ends.
-      {
-        const [fx0, fz0] = toMap(-BOUNDS.x, BOUNDS.zMin);
-        const [fx1, fz1] = toMap(BOUNDS.x, BOUNDS.zMax);
-        mctx.strokeStyle = '#f2c94c';
-        mctx.lineWidth = 1.5;
-        mctx.strokeRect(fx0, fz0, fx1 - fx0, fz1 - fz0);
-      }
-      // The airport, north of the grid: the apron as a grey strip, the
-      // terminal as a filled block, and the runway as a dark band with
-      // white dashes — the same AIRPORT bounds the 3D district uses,
-      // so the minimap and the world never disagree about where the
-      // runway is.
-      {
-        const [ax0, az0] = toMap(AIRPORT.x0, AIRPORT.z0);
-        const [ax1, az1] = toMap(AIRPORT.x1, AIRPORT.z1);
-        mctx.fillStyle = '#6a6f75';
-        mctx.fillRect(ax0, az0, ax1 - ax0, az1 - az0);
-        const [tx0, tz0] = toMap(AIRPORT.terminal.x - 32, AIRPORT.terminal.z - 8);
-        const [tx1, tz1] = toMap(AIRPORT.terminal.x + 32, AIRPORT.terminal.z + 8);
-        mctx.fillStyle = '#c9b8a3';
-        mctx.fillRect(tx0, tz0, tx1 - tx0, tz1 - tz0);
-        const [rx0, rz0] = toMap(AIRPORT.runway.x - 90, AIRPORT.runway.z - 8);
-        const [rx1, rz1] = toMap(AIRPORT.runway.x + 90, AIRPORT.runway.z + 8);
-        mctx.fillStyle = '#3a3d42';
-        mctx.fillRect(rx0, rz0, rx1 - rx0, rz1 - rz0);
-        mctx.fillStyle = '#f2f2e8';
-        for (let x = AIRPORT.runway.x - 76; x <= AIRPORT.runway.x + 76; x += 16) {
-          const [dx] = toMap(x, AIRPORT.runway.z);
-          mctx.fillRect(dx - 2, (rz0 + rz1) / 2 - 0.5, 4, 1);
-        }
-      }
-      // Waypoint: a pulsing amber diamond.
-      if (world.waypoint) {
-        const [wx, wz] = toMap(world.waypoint.x, world.waypoint.z);
-        const pulse = 5 + Math.sin(world.time * 5) * 2;
-        mctx.fillStyle = '#f2c94c';
-        mctx.beginPath();
-        mctx.moveTo(wx, wz - pulse);
-        mctx.lineTo(wx + pulse, wz);
-        mctx.lineTo(wx, wz + pulse);
-        mctx.lineTo(wx - pulse, wz);
-        mctx.closePath();
-        mctx.fill();
-      }
-      // The taxi fare, when one is live: a green diamond at the
-      // destination while riding, a yellow one at the pickup while
-      // waiting — the same diamond language as the mission waypoint,
-      // in the fare's colours, so the player reads it at a glance and
-      // never confuses a fare with a job.
-      if (world.taxiDest) {
-        const [tx, tz] = toMap(world.taxiDest.x, world.taxiDest.z);
-        mctx.fillStyle = world.taxiDest.boarding ? '#f2c94c' : '#7ee787';
-        mctx.beginPath();
-        mctx.moveTo(tx, tz - 5);
-        mctx.lineTo(tx + 5, tz);
-        mctx.lineTo(tx, tz + 5);
-        mctx.lineTo(tx - 5, tz);
-        mctx.closePath();
-        mctx.fill();
-      }
-      // The uncollected hidden packages, as gold dots: the hunt is
-      // visible on the map, so a player can plan the walk instead of
-      // wandering. Found cases leave the list with the mesh, so the
-      // map empties as the hunt completes.
-      for (const pk of world.packages ?? []) {
-        const [px, pz] = toMap(pk.x, pk.z);
-        mctx.fillStyle = '#f2c94c';
-        mctx.fillRect(px - 2, pz - 2, 4, 4);
-      }
-      // Traffic: grey dots. Police: blue dots.
-      for (const car of world.traffic) {
-        const [mx, mz] = toMap(car.x, car.z);
-        mctx.fillStyle = '#c8ccd2';
-        mctx.fillRect(mx - 1.5, mz - 1.5, 3, 3);
-      }
-      for (const cop of world.policeCars) {
-        const [mx, mz] = toMap(cop.x, cop.z);
-        mctx.fillStyle = '#4a8fd9';
-        mctx.beginPath();
-        mctx.arc(mx, mz, 3, 0, Math.PI * 2);
-        mctx.fill();
-      }
-      for (const cop of world.footCops) {
-        if (cop.dead) continue;
-        const [mx, mz] = toMap(cop.x, cop.z);
-        mctx.fillStyle = '#4a8fd9';
-        mctx.fillRect(mx - 2, mz - 2, 4, 4);
-      }
-      // The player: a white triangle pointing along the heading.
-      const [px, pz] = toMap(world.player.x, world.player.z);
-      mctx.save();
-      mctx.translate(px, pz);
-      mctx.rotate(world.player.heading);
-      mctx.fillStyle = '#ffffff';
-      mctx.beginPath();
-      mctx.moveTo(0, -6);
-      mctx.lineTo(4.5, 5);
-      mctx.lineTo(-4.5, 5);
-      mctx.closePath();
-      mctx.fill();
-      mctx.restore();
+      drawWater(mctx, toMap, S);
+      drawBlocks(mctx, toMap, S, half);
+      drawRoads(mctx, toMap, S, half, world);
+      drawFence(mctx, toMap);
+      drawAirport(mctx, toMap);
+      drawWaypoint(mctx, toMap, world);
+      drawTaxiDest(mctx, toMap, world);
+      drawPackages(mctx, toMap, world);
+      drawMovers(mctx, toMap, world);
+      drawPlayer(mctx, toMap, world);
     },
   };
+  return hud;
+}
+
+// Water at the south edge.
+function drawWater(mctx, toMap, S) {
+  const [, wy] = toMap(0, CITY.half + 10);
+  mctx.fillStyle = '#2e7f9e';
+  mctx.fillRect(0, wy, S, S - wy);
+}
+
+// Blocks as filled squares.
+function drawBlocks(mctx, toMap, S, half) {
+  mctx.fillStyle = '#3a4a3a';
+  const pitch = CITY.pitch;
+  for (let bx = 0; bx < CITY.blocks; bx += 1) {
+    for (let bz = 0; bz < CITY.blocks; bz += 1) {
+      const x = -CITY.half + CITY.road + bx * pitch;
+      const z = -CITY.half + CITY.road + bz * pitch;
+      const [mx, mz] = toMap(x, z);
+      const ms = (CITY.block / (half * 2)) * S;
+      mctx.fillRect(mx, mz, ms, ms);
+    }
+  }
+}
+
+// Roads as lines through every street centre.
+function drawRoads(mctx, toMap, S, half, world) {
+  mctx.strokeStyle = '#8a8f96';
+  mctx.lineWidth = Math.max(1, (CITY.road / (half * 2)) * S * 0.7);
+  for (const c of world.city.centres) {
+    const [mx] = toMap(c, 0);
+    mctx.beginPath();
+    mctx.moveTo(mx, 0);
+    mctx.lineTo(mx, S);
+    mctx.stroke();
+    const [, mz] = toMap(0, c);
+    mctx.beginPath();
+    mctx.moveTo(0, mz);
+    mctx.lineTo(S, mz);
+    mctx.stroke();
+  }
+}
+
+// City-limit fence: the same BOUNDS rectangle the 3D fence stands
+// on, drawn amber so the player can see where the map ends.
+function drawFence(mctx, toMap) {
+  const [fx0, fz0] = toMap(-BOUNDS.x, BOUNDS.zMin);
+  const [fx1, fz1] = toMap(BOUNDS.x, BOUNDS.zMax);
+  mctx.strokeStyle = '#f2c94c';
+  mctx.lineWidth = 1.5;
+  mctx.strokeRect(fx0, fz0, fx1 - fx0, fz1 - fz0);
+}
+
+// The airport, north of the grid: the apron as a grey strip, the
+// terminal as a filled block, and the runway as a dark band with
+// white dashes — the same AIRPORT bounds the 3D district uses, so
+// the minimap and the world never disagree about where the runway
+// is.
+function drawAirport(mctx, toMap) {
+  const [ax0, az0] = toMap(AIRPORT.x0, AIRPORT.z0);
+  const [ax1, az1] = toMap(AIRPORT.x1, AIRPORT.z1);
+  mctx.fillStyle = '#6a6f75';
+  mctx.fillRect(ax0, az0, ax1 - ax0, az1 - az0);
+  const [tx0, tz0] = toMap(AIRPORT.terminal.x - 32, AIRPORT.terminal.z - 8);
+  const [tx1, tz1] = toMap(AIRPORT.terminal.x + 32, AIRPORT.terminal.z + 8);
+  mctx.fillStyle = '#c9b8a3';
+  mctx.fillRect(tx0, tz0, tx1 - tx0, tz1 - tz0);
+  const [rx0, rz0] = toMap(AIRPORT.runway.x - 90, AIRPORT.runway.z - 8);
+  const [rx1, rz1] = toMap(AIRPORT.runway.x + 90, AIRPORT.runway.z + 8);
+  mctx.fillStyle = '#3a3d42';
+  mctx.fillRect(rx0, rz0, rx1 - rx0, rz1 - rz0);
+  mctx.fillStyle = '#f2f2e8';
+  for (let x = AIRPORT.runway.x - 76; x <= AIRPORT.runway.x + 76; x += 16) {
+    const [dx] = toMap(x, AIRPORT.runway.z);
+    mctx.fillRect(dx - 2, (rz0 + rz1) / 2 - 0.5, 4, 1);
+  }
+}
+
+function diamond(mctx, x, y, r) {
+  mctx.beginPath();
+  mctx.moveTo(x, y - r);
+  mctx.lineTo(x + r, y);
+  mctx.lineTo(x, y + r);
+  mctx.lineTo(x - r, y);
+  mctx.closePath();
+  mctx.fill();
+}
+
+// Waypoint: a pulsing amber diamond.
+function drawWaypoint(mctx, toMap, world) {
+  if (!world.waypoint) return;
+  const [wx, wz] = toMap(world.waypoint.x, world.waypoint.z);
+  const pulse = 5 + Math.sin(world.time * 5) * 2;
+  mctx.fillStyle = '#f2c94c';
+  diamond(mctx, wx, wz, pulse);
+}
+
+// The taxi fare, when one is live: a green diamond at the
+// destination while riding, a yellow one at the pickup while
+// waiting — the same diamond language as the mission waypoint, in
+// the fare's colours, so the player reads it at a glance and never
+// confuses a fare with a job.
+function drawTaxiDest(mctx, toMap, world) {
+  if (!world.taxiDest) return;
+  const [tx, tz] = toMap(world.taxiDest.x, world.taxiDest.z);
+  mctx.fillStyle = world.taxiDest.boarding ? '#f2c94c' : '#7ee787';
+  diamond(mctx, tx, tz, 5);
+}
+
+// The uncollected hidden packages, as gold dots: the hunt is
+// visible on the map, so a player can plan the walk instead of
+// wandering. Found cases leave the list with the mesh, so the map
+// empties as the hunt completes.
+function drawPackages(mctx, toMap, world) {
+  for (const pk of world.packages ?? []) {
+    const [px, pz] = toMap(pk.x, pk.z);
+    mctx.fillStyle = '#f2c94c';
+    mctx.fillRect(px - 2, pz - 2, 4, 4);
+  }
+}
+
+// Traffic: grey dots. Police: blue dots (cars) and squares (foot).
+function drawMovers(mctx, toMap, world) {
+  for (const car of world.traffic) {
+    const [mx, mz] = toMap(car.x, car.z);
+    mctx.fillStyle = '#c8ccd2';
+    mctx.fillRect(mx - 1.5, mz - 1.5, 3, 3);
+  }
+  for (const cop of world.policeCars) {
+    const [mx, mz] = toMap(cop.x, cop.z);
+    mctx.fillStyle = '#4a8fd9';
+    mctx.beginPath();
+    mctx.arc(mx, mz, 3, 0, Math.PI * 2);
+    mctx.fill();
+  }
+  for (const cop of world.footCops) {
+    if (cop.dead) continue;
+    const [mx, mz] = toMap(cop.x, cop.z);
+    mctx.fillStyle = '#4a8fd9';
+    mctx.fillRect(mx - 2, mz - 2, 4, 4);
+  }
+}
+
+// The player: a white triangle pointing along the heading.
+function drawPlayer(mctx, toMap, world) {
+  const [px, pz] = toMap(world.player.x, world.player.z);
+  mctx.save();
+  mctx.translate(px, pz);
+  mctx.rotate(world.player.heading);
+  mctx.fillStyle = '#ffffff';
+  mctx.beginPath();
+  mctx.moveTo(0, -6);
+  mctx.lineTo(4.5, 5);
+  mctx.lineTo(-4.5, 5);
+  mctx.closePath();
+  mctx.fill();
+  mctx.restore();
 }

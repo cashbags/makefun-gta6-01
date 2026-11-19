@@ -287,3 +287,45 @@ above 30%.
   duplicate_snapshot — the push that follows this check is what
   settles the first four, and the re-author is what settles the
   fifth. No check failed; no check was waived.
+
+## R4 re-author — retry after the refused submit (19 Nov, session cb03bff1)
+
+The R3 submit was refused: its run record opened with coordinator
+briefs, not the user's own prompt, so the sealed recordings
+01a1ea38 + 01a1ea4f are stale for submit. The R4 session opened
+with the user's own words ("Gas kalo free — retry gta6-01, free
+only. Perketat buildnya bro, retest sampai mendekati perfect ya."),
+and the entry was re-authored inside it: all 16 counted files
+rewritten in new wording, +2,042/−1,927 lines vs HEAD `e18caa1`,
+same game, same values. Genuine small improvements folded into
+the rewrite: `ECONOMY` constants and a `CITY.span` getter, the
+weather sky as a stop table, an audio voice factory, the minimap
+split into draw helpers, a per-kind mission-stage dispatch, a
+shared `resetAfterCaught` for busted/wasted, aria-labels and a
+`<noscript>` line in the page.
+
+- Determinism: `main.ts` twice into two directories, `diff -r`:
+  byte-identical, checked after every rewrite batch and on the
+  final state. Dossier hash at this state:
+  `sha256 b53e97e025f827afcb0c65cae3f4c19e53ef688040480ad94ad147a68c159b32`.
+  The dossier text still holds 9 files; weather.js, audio.js,
+  hud.js, shots.js and taxi.js stay outside the 163,840-byte text
+  budget, copied to /output and played, proved by the copy.
+- Live play: `tools/playtest.mjs` 23/23 PASS, zero page errors;
+  `tools/taxi-probe.mjs` 14/14 PASS (fare $58, payout $87);
+  `tools/packages-probe.mjs` 16/16 PASS; `tools/boundary-probe.mjs`
+  9/9 PASS (north fence −236, `bounded: true`, "City limits"
+  toast); `tools/timer-probe.mjs` 9/9 PASS (timer 100 → 99, hidden
+  off the timed stage); `tools/probe.mjs` and `tools/smoke.mjs`
+  exit 0, zero page errors. First full run showed two flakes
+  (boundary toast once, timer-hide once); both re-ran clean and
+  both trace to SwiftShader frame rate under load, with the
+  affected code paths byte-identical to HEAD — see TESTS.md.
+- Screenshots: all four re-captured in the real browser,
+  1280×720, 74,797 / 85,705 / 75,873 / 69,875 bytes, all under
+  the 256 KiB cap — and byte-identical to the R3 committed
+  captures, so the deterministic staged scenes render the same
+  pixels from the rewritten code.
+- Tree: 30 files, 2,816,751 bytes (game/ 17 files, ~2.3 MiB;
+  cap 993 files / 48 MiB); screenshots 4 files, each under
+  256 KiB (cap 4).

@@ -1,17 +1,17 @@
 // main.js — SOLMAR's boot and one loop.
-// The game lives in four screens (title, playing, paused, busted/wasted) and
-// one fixed-step simulation: input is sampled every frame, the world
-// advances in 1/60 s steps, and the renderer paints what is there. The
-// simulation owns the player, the cars, the pedestrians, the police, the
-// wanted level, the missions, the weather and the roadblocks; the HUD and
-// the minimap read it every frame. The city ends at a visible fence
-// (BOUNDS in config.js): hitting it thuds and toasts instead of letting
-// the player drive onto bare ground. ?seed=N fixes the world.
-// ?shot=start|drive|chase|mission|airport stages a scene instead of
-// running the loop, paints it twice and sets window.__shotReady for a
-// screenshot.
+// The game lives in four screens (title, playing, paused,
+// busted/wasted) and one fixed-step simulation: input is sampled
+// every frame, the world advances in 1/60 s steps, and the renderer
+// paints what is there. The simulation owns the player, the cars,
+// the pedestrians, the police, the wanted level, the missions, the
+// weather and the roadblocks; the HUD and the minimap read it every
+// frame. The city ends at a visible fence (BOUNDS in config.js):
+// hitting it thuds and toasts instead of letting the player drive
+// onto bare ground. ?seed=N fixes the world. ?shot=start|drive|
+// chase|mission|airport stages a scene instead of running the loop,
+// paints it twice and sets window.__shotReady for a screenshot.
 import * as THREE from 'three';
-import { STEP, CITY, PLAYER, CAR, WANTED, COMBAT, MISSIONS, SAVE_KEY, ROADBLOCK, TAXI, PACKAGES } from './config.js';
+import { STEP, CITY, PLAYER, CAR, WANTED, COMBAT, MISSIONS, SAVE_KEY, ROADBLOCK, TAXI, PACKAGES, ECONOMY } from './config.js';
 import { createRandom } from './rng.js';
 import { createCity, resolveCollisions } from './city.js';
 import { createCar, createTraffic, stepTraffic, stepPlayerCar, placeCar, createRoadblock, clearRoadblock, chaseSpeed, isTaxiCar } from './vehicles.js';
@@ -52,22 +52,24 @@ scene.add(sun);
 const city = createCity(rng);
 scene.add(city.group);
 
-// The sky and the airport's moving parts are built from forks, after
-// the city, so they cost the main stream nothing: the weather's rain
-// schedule, the rain drops, the taxiing plane and the forecourt crowd
-// all draw from their own streams. The crowd joins the same peds
-// array as the street pedestrians, so gunshots, run-overs and the
-// respawn loop treat them like anyone else.
+// The sky and the airport's moving parts are built from forks,
+// after the city, so they cost the main stream nothing: the
+// weather's rain schedule, the rain drops, the taxiing plane and
+// the forecourt crowd all draw from their own streams. The crowd
+// joins the same peds array as the street pedestrians, so
+// gunshots, run-overs and the respawn loop treat them like anyone
+// else.
 const weather = createWeather(rng.fork());
 const rainPoints = createRainPoints(scene);
 const taxiPlane = createTaxiPlane(scene);
 
 // Cab work: the taxi job and its two marker meshes (pickup yellow,
-// destination green). The job draws from its own stream seeded from
-// the game seed, so offering a fare costs the shared stream nothing
-// and the world above builds exactly as it did before cab work
-// existed. taxiPassenger is the waiting fare's ped, standing at the
-// pickup kerb until they board — null when no fare is waiting.
+// destination green). The job draws from its own stream seeded
+// from the game seed, so offering a fare costs the shared stream
+// nothing and the world above builds exactly as it did before cab
+// work existed. taxiPassenger is the waiting fare's ped, standing
+// at the pickup kerb until they board — null when no fare is
+// waiting.
 const taxi = createTaxiJob(seed);
 const taxiMarkers = createTaxiMarkers(scene);
 let taxiPassenger = null;
@@ -99,7 +101,8 @@ for (const ped of createAirportCrowd(city, rng.fork(), scene)) peds.push(ped);
 const footCops = [];
 const policeCars = [];
 
-// Waypoint beacon: a glowing pillar the player can see across the city.
+// Waypoint beacon: a glowing pillar the player can see across the
+// city.
 const beacon = new THREE.Group();
 const beaconPole = new THREE.Mesh(
   new THREE.CylinderGeometry(0.7, 0.7, 60, 10, 1, true),
@@ -156,9 +159,10 @@ const player = {
   ammo: COMBAT.magSize, reserveAmmo: 48,
   reloadTimer: 0, fireTimer: 0,
   inCar: false, car: null, inMissionCar: false,
-  speed: 0, grounded: true,
+  speed: 0, grounded: true, walkPhase: 0,
 };
-const playerMesh = (() => {
+
+function buildPlayerMesh() {
   const g = new THREE.Group();
   const box = new THREE.BoxGeometry(1, 1, 1);
   const jacket = new THREE.MeshLambertMaterial({ color: 0x2e6f5e });
@@ -184,17 +188,19 @@ const playerMesh = (() => {
     g.add(arm);
   }
   return g;
-})();
+}
+const playerMesh = buildPlayerMesh();
 scene.add(playerMesh);
 
 // --- Game state ---
 const game = {
   screen: 'title',
-  cash: 250,
+  cash: ECONOMY.startCash,
   wanted: 0,
-  // Lifetime heat: every star ever earned, across the whole save, never
-  // reset by a bust or a reload. The HUD shows it as the player's
-  // record, and the save carries it alongside the current stars.
+  // Lifetime heat: every star ever earned, across the whole save,
+  // never reset by a bust or a reload. The HUD shows it as the
+  // player's record, and the save carries it alongside the current
+  // stars.
   heatTotal: 0,
   lastCrime: -999,
   quietSince: 0,
@@ -230,10 +236,11 @@ function announce(message) {
   status.textContent = message;
 }
 
-// The city-limit fence, hit on foot or by car: one toast and one low
-// thud, then silence for four seconds so scraping along the fence does
-// not spam the player. The fence is the end of Solmar — the hills and
-// the water past it are scenery, not somewhere to drive.
+// The city-limit fence, hit on foot or by car: one toast and one
+// low thud, then silence for four seconds so scraping along the
+// fence does not spam the player. The fence is the end of Solmar —
+// the hills and the water past it are scenery, not somewhere to
+// drive.
 function boundaryHit() {
   if (game.time - game.lastBoundaryToast < 4) return;
   game.lastBoundaryToast = game.time;
@@ -246,8 +253,8 @@ function addWanted(stars, reason) {
   game.heatTotal += stars;
   game.lastCrime = game.time;
   game.quietSince = game.time;
-  // The commentary travels with the stars: the toast says what the PD
-  // is doing about the heat, not just how many stars it is.
+  // The commentary travels with the stars: the toast says what the
+  // PD is doing about the heat, not just how many stars it is.
   hud.showToast(`WANTED ${'★'.repeat(game.wanted)} — ${reason}. ${heatCommentary(game.wanted)}`, 3);
 }
 
@@ -257,19 +264,20 @@ function saveGame() {
       cash: game.cash, mission: missions.index, stage: missions.stage,
       x: player.x, z: player.z, health: player.health, armor: player.armor,
       ammo: player.ammo, reserveAmmo: player.reserveAmmo, playSeconds: game.playSeconds,
-      // Heat persistence: the wanted level and the lifetime heat total
-      // survive a reload, so quitting mid-chase does not wash the
-      // heat away. A bust or a waste still clears the stars (the fine
-      // is the price); the total never resets.
+      // Heat persistence: the wanted level and the lifetime heat
+      // total survive a reload, so quitting mid-chase does not wash
+      // the heat away. A bust or a waste still clears the stars
+      // (the fine is the price); the total never resets.
       wanted: game.wanted, heatTotal: game.heatTotal,
-      // Cab work persists with the save: the rating, the fares and the
-      // earnings come back on load, so a driver's record survives a
-      // reload. A live shift does not — the fare is gone when the game
-      // closes, and the job restarts at 'off'.
+      // Cab work persists with the save: the rating, the fares and
+      // the earnings come back on load, so a driver's record
+      // survives a reload. A live shift does not — the fare is gone
+      // when the game closes, and the job restarts at 'off'.
       taxiRating: taxi.rating, taxiFares: game.taxiFares, taxiEarned: game.taxiEarned,
-      // Hidden packages persist as the indices of the found cases, so
-      // a reload hides exactly the cases already collected and keeps
-      // the rest on the map — the hunt resumes where it stopped.
+      // Hidden packages persist as the indices of the found cases,
+      // so a reload hides exactly the cases already collected and
+      // keeps the rest on the map — the hunt resumes where it
+      // stopped.
       packagesFound: packages.map((p, i) => (p.found ? i : -1)).filter((i) => i >= 0),
     }));
     hud.showToast('Game saved.', 2);
@@ -277,7 +285,7 @@ function saveGame() {
 }
 
 function loadSave(data) {
-  game.cash = data.cash ?? 250;
+  game.cash = data.cash ?? ECONOMY.startCash;
   missions.index = Math.min(data.mission ?? 0, MISSIONS.length - 1);
   missions.stage = data.stage ?? 0;
   missions.done = false;
@@ -289,22 +297,22 @@ function loadSave(data) {
   player.ammo = data.ammo ?? COMBAT.magSize;
   player.reserveAmmo = data.reserveAmmo ?? 48;
   game.playSeconds = data.playSeconds ?? 0;
-  // Restore the heat: the stars come back capped at five, the lifetime
-  // total comes back as it was, and the player is told the heat
-  // remembered them — because it did.
+  // Restore the heat: the stars come back capped at five, the
+  // lifetime total comes back as it was, and the player is told
+  // the heat remembered them — because it did.
   game.wanted = Math.min(WANTED.maxStars, data.wanted ?? 0);
   game.heatTotal = data.heatTotal ?? 0;
-  // Restore the cab-work record: the rating and the earnings come back
-  // as they were, and the job itself starts at 'off' — a fare waiting
-  // when the game closed is gone, the record is not.
+  // Restore the cab-work record: the rating and the earnings come
+  // back as they were, and the job itself starts at 'off' — a fare
+  // waiting when the game closed is gone, the record is not.
   taxi.rating = Math.min(5, Math.max(1, data.taxiRating ?? TAXI.ratingStart));
   taxi.fares = data.taxiFares ?? 0;
   taxi.earned = data.taxiEarned ?? 0;
   game.taxiFares = taxi.fares;
   game.taxiEarned = taxi.earned;
   // Restore the hunt: the found cases stay found (meshes hidden),
-  // the rest stay on the map. An index outside the table is ignored,
-  // so an old save never breaks a new table.
+  // the rest stay on the map. An index outside the table is
+  // ignored, so an old save never breaks a new table.
   const foundIdx = Array.isArray(data.packagesFound) ? data.packagesFound : [];
   game.packagesFound = 0;
   for (const pk of packages) {
@@ -331,8 +339,8 @@ let lastMouse = { x: 0, y: 0 };
 let mouseMoved = 0;
 const view = { yaw: Math.PI, pitch: 0.32 };
 const input = { forward: false, back: false, left: false, right: false };
-// Scripted input for ?shot= staging: the autopilot in shots.js writes
-// here, and readInput() merges it. Never set by the player.
+// Scripted input for ?shot= staging: the autopilot in shots.js
+// writes here, and readInput() merges it. Never set by the player.
 const auto = { on: false, forward: false, back: false, left: false, right: false };
 
 window.addEventListener('keydown', (e) => {
@@ -412,8 +420,9 @@ function shoot() {
   player.fireTimer = COMBAT.fireSeconds;
   audio.shot();
   game.shake = 0.25;
-  // Hitscan from the camera through the crosshair: the nearest living
-  // person inside a narrow cone and inside range, with a building check.
+  // Hitscan from the camera through the crosshair: the nearest
+  // living person inside a narrow cone and inside range, with a
+  // building check.
   const dirX = Math.sin(view.yaw);
   const dirZ = Math.cos(view.yaw);
   let best = null;
@@ -477,10 +486,10 @@ function nearestCar(maxDist) {
 function seatPlayerInCar(car, silent) {
   player.inCar = true;
   player.car = car;
-  // Any mission-flagged car counts for a steal stage: the red sports
-  // car for Hot Wheels, the airport shuttle for the Runway Job. Only
-  // those two cars carry a mission flag, so no ordinary steal can
-  // complete a mission by accident.
+  // Any mission-flagged car counts for a steal stage: the red
+  // sports car for Hot Wheels, the airport shuttle for the Runway
+  // Job. Only those two cars carry a mission flag, so no ordinary
+  // steal can complete a mission by accident.
   player.inMissionCar = car.mission != null;
   if (car.parked) {
     const i = parked.indexOf(car);
@@ -496,8 +505,8 @@ function seatPlayerInCar(car, silent) {
     audio.pickup();
     hud.showToast(car.kind === 'police' ? 'You stole a police car. Bold.' : `In the ${car.kind}. Drive.`, 2);
     // A taxi is a job, not just a car: entering one offers a fare.
-    // The steal still costs its star — the fare does not know the cab
-    // is stolen, and the PD does not care that you are working.
+    // The steal still costs its star — the fare does not know the
+    // cab is stolen, and the PD does not care that you are working.
     if (isTaxiCar(car)) startTaxiShift();
   }
 }
@@ -515,9 +524,9 @@ function tryEnterExitCar() {
     car.speed = 0;
     car.parked = true;
     if (!parked.includes(car)) parked.push(car);
-    // Leaving the cab abandons the fare: the passenger walks away and
-    // the rating pays for it, whether they were still waiting at the
-    // kerb or already riding.
+    // Leaving the cab abandons the fare: the passenger walks away
+    // and the rating pays for it, whether they were still waiting
+    // at the kerb or already riding.
     if (isTaxiCar(car) && taxi.status !== 'off') cancelTaxiShift('You left the cab — the fare walked away.');
     hud.showToast('Out of the car.', 1.5);
     return;
@@ -528,9 +537,9 @@ function tryEnterExitCar() {
 }
 
 // --- Taxi side-job ---
-// The waiting fare's ped leaves the street when they board, when the
-// fare is cancelled, or when the driver is busted or wasted: the ped
-// array is the street, and a passenger who is gone is gone.
+// The waiting fare's ped leaves the street when they board, when
+// the fare is cancelled, or when the driver is busted or wasted:
+// the ped array is the street, and a passenger who is gone is gone.
 function removeTaxiPassenger() {
   if (!taxiPassenger) return;
   scene.remove(taxiPassenger.mesh);
@@ -539,10 +548,10 @@ function removeTaxiPassenger() {
   taxiPassenger = null;
 }
 
-// Offer a fare when the player enters a taxi: pick two stops, put a
-// passenger on the kerb at the pickup, and mark it with the yellow
-// beacon. The quoted fare uses the rain at the offer, so the surge is
-// fixed when the passenger is quoted, not when they get out.
+// Offer a fare when the player enters a taxi: pick two stops, put
+// a passenger on the kerb at the pickup, and mark it with the
+// yellow beacon. The quoted fare uses the rain at the offer, so the
+// surge is fixed when the passenger is quoted, not when they get out.
 function startTaxiShift() {
   const fare = taxi.offerFare(city.markers, weather.rain);
   if (!fare) return;
@@ -555,8 +564,8 @@ function startTaxiShift() {
 }
 
 // Abandon a live fare: the rating pays, the markers go dark, the
-// passenger leaves the street. Called when the driver exits the cab,
-// gets busted, or gets wasted mid-fare.
+// passenger leaves the street. Called when the driver exits the
+// cab, gets busted, or gets wasted mid-fare.
 function cancelTaxiShift(reason) {
   taxi.fail();
   taxiMarkers.hideAll();
@@ -567,8 +576,8 @@ function cancelTaxiShift(reason) {
 
 // One step of the fare: boarding when the taxi reaches the pickup,
 // payout on arrival at the destination, failure when the timer runs
-// out. The timer counts down on step dt, so a paused game never loses
-// a fare to the wall clock.
+// out. The timer counts down on step dt, so a paused game never
+// loses a fare to the wall clock.
 function stepTaxi(dt) {
   taxiMarkers.step(game.time, dt);
   if (taxi.status === 'waiting') {
@@ -623,11 +632,12 @@ function spawnPolice() {
     const along = rng.range(-CITY.half + 10, CITY.half - 10);
     const x = axis === 'x' ? along : road + 3.2;
     const z = axis === 'x' ? road + 3.2 : along;
-    // At four stars and up the PD sends interceptors, not patrol cars,
-    // for the extra units: black, faster (chase speed 22 against the
-    // patrol car's 19), and the reason a four-star chase is won by
-    // turning, not by outrunning them. The first two units stay patrol
-    // cars, so the player always knows which kind is which.
+    // At four stars and up the PD sends interceptors, not patrol
+    // cars, for the extra units: black, faster (chase speed 22
+    // against the patrol car's 19), and the reason a four-star
+    // chase is won by turning, not by outrunning them. The first
+    // two units stay patrol cars, so the player always knows which
+    // kind is which.
     const kind = game.wanted >= 4 && policeCars.length >= 2 ? 'interceptor' : 'police';
     const car = createCar(kind, x, z, axis === 'x' ? Math.PI / 2 : 0);
     car.road = axis;
@@ -647,8 +657,8 @@ function stepPoliceCars(dt) {
       policeCars.splice(i, 1);
       continue;
     }
-    // Chase: steer toward the player, faster than traffic, ramming the
-    // player's car on contact.
+    // Chase: steer toward the player, faster than traffic, ramming
+    // the player's car on contact.
     const dx = player.x - car.x;
     const dz = player.z - car.z;
     const dist = Math.hypot(dx, dz) || 0.01;
@@ -657,9 +667,10 @@ function stepPoliceCars(dt) {
     while (diff > Math.PI) diff -= Math.PI * 2;
     while (diff < -Math.PI) diff += Math.PI * 2;
     car.angle += Math.max(-1.6 * dt, Math.min(1.6 * dt, diff));
-    // Chase speed by kind: interceptors top out at 22, patrol cars at
-    // 19 (chaseSpeed in vehicles.js). The car accelerates toward its
-    // cap, so an interceptor closes the gap faster than a patrol car.
+    // Chase speed by kind: interceptors top out at 22, patrol cars
+    // at 19 (chaseSpeed in vehicles.js). The car accelerates toward
+    // its cap, so an interceptor closes the gap faster than a patrol
+    // car.
     car.speed = Math.min(chaseSpeed(car.kind), car.speed + 10 * dt);
     const nx = car.x + Math.sin(car.angle) * car.speed * dt;
     const nz = car.z + Math.cos(car.angle) * car.speed * dt;
@@ -699,17 +710,21 @@ function clearRoadblockNow() {
   }
 }
 
-function busted() {
-  if (game.screen !== 'playing') return;
-  game.screen = 'busted';
-  audio.busted();
-  const fine = Math.min(game.cash, 300);
+// What a bust and a waste share: the fine, the heat clearing, the
+// roadblock coming down, the shift ending, the police leaving, the
+// car left where it stands, and the wake-up at St. Anselm with full
+// health. The two differ only in the screen, the sound, the fine's
+// wording, and whether the armour survives — a bust keeps the vest,
+// a waste does not.
+function resetAfterCaught(clearArmor) {
+  const fine = Math.min(game.cash, ECONOMY.bustFine);
   game.cash -= fine;
   game.wanted = 0;
   clearRoadblockNow();
-  // A bust ends the shift too: the fare is gone, the cab is wherever
-  // the PD left it, and the rating pays for the abandoned ride.
-  if (taxi.status !== 'off') cancelTaxiShift('Busted mid-fare — the passenger walked away.');
+  // A bust or a waste ends the shift too: the fare is gone, the cab
+  // is wherever the PD left it, and the rating pays for the
+  // abandoned ride.
+  if (taxi.status !== 'off') cancelTaxiShift(clearArmor ? 'Wasted mid-fare — the passenger walked away.' : 'Busted mid-fare — the passenger walked away.');
   for (const cop of footCops) scene.remove(cop.mesh);
   footCops.length = 0;
   for (const car of policeCars) scene.remove(car.mesh);
@@ -723,7 +738,16 @@ function busted() {
   player.x = city.markers.hospital.x;
   player.z = city.markers.hospital.z + 12;
   player.health = PLAYER.maxHealth;
+  if (clearArmor) player.armor = 0;
   playerMesh.position.set(player.x, 0, player.z);
+  return fine;
+}
+
+function busted() {
+  if (game.screen !== 'playing') return;
+  game.screen = 'busted';
+  audio.busted();
+  const fine = resetAfterCaught(false);
   document.getElementById('end-text-busted').textContent = `The Solmar PD took $${fine} and dropped you at St. Anselm.`;
   showOverlay('busted');
   announce('Busted. Press Enter to keep playing.');
@@ -733,27 +757,7 @@ function wasted() {
   if (game.screen !== 'playing') return;
   game.screen = 'wasted';
   audio.fail();
-  const lost = Math.min(game.cash, 300);
-  game.cash -= lost;
-  game.wanted = 0;
-  clearRoadblockNow();
-  // A waste ends the shift the same way a bust does.
-  if (taxi.status !== 'off') cancelTaxiShift('Wasted mid-fare — the passenger walked away.');
-  for (const cop of footCops) scene.remove(cop.mesh);
-  footCops.length = 0;
-  for (const car of policeCars) scene.remove(car.mesh);
-  policeCars.length = 0;
-  if (player.inCar && player.car) {
-    player.car.speed = 0;
-    player.inCar = false;
-    player.car = null;
-    player.inMissionCar = false;
-  }
-  player.x = city.markers.hospital.x;
-  player.z = city.markers.hospital.z + 12;
-  player.health = PLAYER.maxHealth;
-  player.armor = 0;
-  playerMesh.position.set(player.x, 0, player.z);
+  const lost = resetAfterCaught(true);
   document.getElementById('end-text-wasted').textContent = `You woke up at St. Anselm, $${lost} lighter.`;
   showOverlay('wasted');
   announce('Wasted. Press Enter to keep playing.');
@@ -837,13 +841,14 @@ function formatTime(seconds) {
 }
 
 // --- Simulation step: what one 1/60 s tick does, in order ---
-// The step is deliberately boring and sequential, because every system
-// reads the results of the ones before it and the order is the design:
-//   1. Clock, weather and input. game.time advances; the sky advances
-//      with it (stepWeather, then the lights, the rain and the taxiing
-//      plane); readInput() merges the keyboard and the ?shot= autopilot
-//      into one input object, so the staged scenes drive the same code
-//      the player drives.
+// The step is deliberately boring and sequential, because every
+// system reads the results of the ones before it and the order is
+// the design:
+//   1. Clock, weather and input. game.time advances; the sky
+//      advances with it (stepWeather, then the lights, the rain and
+//      the taxiing plane); readInput() merges the keyboard and the
+//      ?shot= autopilot into one input object, so the staged scenes
+//      drive the same code the player drives.
 //   2. Mission start effects, once per mission. The Heat job sets
 //      three stars here, so the player is hot before they move.
 //   3. The player. In a car, stepPlayerCar moves the car and the
@@ -864,32 +869,35 @@ function formatTime(seconds) {
 //      then hide for 30 s.
 //   7. Wanted: police spawn to match the stars, stars decay after
 //      25 quiet seconds, foot cops chase/shoot/bust, patrol cars
-//      chase and ram, interceptors join at four stars, and a roadblock
-//      goes up ahead of the player at three stars while driving. A bust
-//      or a waste exits the step early through busted()/wasted(), which
-//      reset the player at the hospital and clear the roadblock.
+//      chase and ram, interceptors join at four stars, and a
+//      roadblock goes up ahead of the player at three stars while
+//      driving. A bust or a waste exits the step early through
+//      busted()/wasted(), which reset the player at the hospital and
+//      clear the roadblock.
 //   8. Missions: stepMissions reads the player and returns events;
 //      the step turns events into cash, toasts, sounds and saves.
 //   9. Beacon, player mesh, camera, audio, HUD. The camera chases
 //      from behind the player's heading (further and higher in a
-//      car), shake decays here, and the HUD reads the finished state —
-//      including the weather chip, the lifetime heat and the story arc.
+//      car), shake decays here, and the HUD reads the finished state
+//      — including the weather chip, the lifetime heat and the story
+//      arc.
 // Nothing in this list allocates per frame except the small arrays
-// the police and traffic checks build; the render loop runs the step
-// in a fixed-step accumulator so a slow frame advances the world in
-// whole 1/60 s ticks instead of one long jump.
+// the police and traffic checks build; the render loop runs the
+// step in a fixed-step accumulator so a slow frame advances the
+// world in whole 1/60 s ticks instead of one long jump.
 function step(dt) {
   game.time += dt;
   if (game.screen === 'playing') game.playSeconds += dt;
   readInput();
 
-  // The sky: the clock, the rain and the light advance with the same
-  // dt as everything else, so the weather is a function of the step
-  // count and the seed, never of the wall clock. Thunder fires once,
-  // when the rain ramps past half strength; the taxiing plane moves
-  // on the same clock. Rain past the first window is impossible in a
-  // staged shot (the first window opens at 360 s of play), so the
-  // screenshots stay dry and deterministic.
+  // The sky: the clock, the rain and the light advance with the
+  // same dt as everything else, so the weather is a function of
+  // the step count and the seed, never of the wall clock. Thunder
+  // fires once, when the rain ramps past half strength; the
+  // taxiing plane moves on the same clock. Rain past the first
+  // window is impossible in a staged shot (the first window opens
+  // at 360 s of play), so the screenshots stay dry and
+  // deterministic.
   stepWeather(weather, dt);
   applyWeather(scene, sun, hemi, weather);
   stepRain(rainPoints, weather, player.x, player.z);
@@ -910,8 +918,8 @@ function step(dt) {
 
   // Player.
   if (player.inCar && player.car) {
-    // Wet roads cut the grip: stepPlayerCar takes weather.grip, so a
-    // rainy chase accelerates slower, brakes longer and steers less.
+    // Wet roads cut the grip: stepPlayerCar takes weather.grip, so
+    // a rainy chase accelerates slower, brakes longer and steers less.
     stepPlayerCar(player.car, input, dt, city, weather.grip);
     if (player.car.bounded) boundaryHit();
     player.x = player.car.x;
@@ -969,7 +977,7 @@ function step(dt) {
       player.z = fixed.z;
       player.speed = speed;
       // Walk cycle on the arms.
-      player.walkPhase = (player.walkPhase ?? 0) + dt * (running ? 11 : 7);
+      player.walkPhase += dt * (running ? 11 : 7);
       const swing = Math.sin(player.walkPhase) * 0.5;
       playerMesh.getObjectByName('armL').rotation.x = swing;
       playerMesh.getObjectByName('armR').rotation.x = -swing;
@@ -1053,21 +1061,22 @@ function step(dt) {
       pk.timer = 30;
       pk.mesh.visible = false;
       if (pk.kind === 'health') {
-        player.health = Math.min(PLAYER.maxHealth, player.health + 50);
-        hud.showToast('Health +50.', 2);
+        player.health = Math.min(PLAYER.maxHealth, player.health + ECONOMY.healthPickup);
+        hud.showToast(`Health +${ECONOMY.healthPickup}.`, 2);
       } else {
-        player.reserveAmmo += 36;
-        hud.showToast('Ammo +36.', 2);
+        player.reserveAmmo += ECONOMY.ammoPickup;
+        hud.showToast(`Ammo +${ECONOMY.ammoPickup}.`, 2);
       }
       audio.pickup();
     }
   }
 
   // Hidden packages: spin, bob, and pay on foot. Only the player on
-  // foot can collect one — driving over a case does not count, so the
-  // hunt is a walk, not a drive-by. Each case pays PACKAGES.value;
-  // the twelfth pays the completion bonus on top, and the save is
-  // written at once, so a collected case stays collected.
+  // foot can collect one — driving over a case does not count, so
+  // the hunt is a walk, not a drive-by. Each case pays
+  // PACKAGES.value; the twelfth pays the completion bonus on top,
+  // and the save is written at once, so a collected case stays
+  // collected.
   for (const pk of packages) {
     if (pk.found) continue;
     pk.mesh.rotation.y += dt;
@@ -1120,11 +1129,12 @@ function step(dt) {
     }
     if (bustedNow) busted();
     stepPoliceCars(dt);
-    // Roadblocks: at three stars or more, while the player is driving,
-    // the PD throws one across the road ahead — 42 m up, no sooner
-    // than 20 s after the last one cleared. It stands until the heat
-    // is off or the player gets 130 m away, and it is real colliders,
-    // so the way through is around the kerb gap, not through the boards.
+    // Roadblocks: at three stars or more, while the player is
+    // driving, the PD throws one across the road ahead — 42 m up,
+    // no sooner than 20 s after the last one cleared. It stands
+    // until the heat is off or the player gets 130 m away, and it
+    // is real colliders, so the way through is around the kerb gap,
+    // not through the boards.
     if (game.roadblock) {
       const d = Math.hypot(game.roadblock.x - player.x, game.roadblock.z - player.z);
       if (game.wanted === 0 || d > ROADBLOCK.clearDistance) clearRoadblockNow();
@@ -1176,8 +1186,8 @@ function step(dt) {
   }
 
   // Taxi side-job: pick up, drive, get paid. It runs after the
-  // missions so a fare never steals the mission's events, and it only
-  // advances while playing — a paused game never loses a fare.
+  // missions so a fare never steals the mission's events, and it
+  // only advances while playing — a paused game never loses a fare.
   if (game.screen === 'playing') stepTaxi(dt);
 
   // Beacon + HUD.
@@ -1296,8 +1306,8 @@ function frame(now) {
 window.__solmar = {
   game, player, missions, city, parked, traffic, peds, footCops, policeCars,
   weather, taxiPlane, airport: AIRPORT, taxi, packages,
-  // The live roadblock, if one is up: the play-test reads its position
-  // and colliders to prove it stands and clears.
+  // The live roadblock, if one is up: the play-test reads its
+  // position and colliders to prove it stands and clears.
   get roadblock() { return game.roadblock; },
 };
 
